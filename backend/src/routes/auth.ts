@@ -133,9 +133,19 @@ router.get('/google/proxy', (req, res) => {
         <script>
           // Extract the hash (e.g., #id_token=...) or search parameters
           const hash = window.location.hash || window.location.search;
-          // You can also dynamically pass the Expo URL via a state parameter if needed
-          // For now, we redirect to the standard Expo Go scheme
-          const deepLink = "exp://192.168.1.3:8081/--/google-auth" + hash;
+          
+          // Google sends the 'state' back either in the search or hash
+          const params = new URLSearchParams(hash.replace('#', '?'));
+          const stateStr = params.get('state');
+          
+          let returnUrl = "exp://192.168.1.3:8081/"; // fallback
+          if (stateStr) {
+            // we passed the returnUrl directly in the state parameter
+            returnUrl = stateStr;
+          }
+          
+          // Redirect the mobile app
+          const deepLink = returnUrl + hash;
           window.location.href = deepLink;
         </script>
       </body>
