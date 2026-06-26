@@ -130,16 +130,19 @@ router.get('/google/proxy', (req, res) => {
         <h2>Finishing Google Login...</h2>
         <script>
           const hash = window.location.hash || window.location.search;
-          
-          // Expo Go sometimes strips URL fragments (#), so we convert it to a query string (?)
           const queryParams = hash.replace('#', '?');
           const params = new URLSearchParams(queryParams);
           const stateStr = params.get('state');
           
-          // The mobile app passes its exact local IP deep link in the state parameter!
-          const returnUrl = stateStr || "exp://192.168.1.3:8081/--/googleauth";
+          let returnUrl = "exp://192.168.1.3:8081/";
+          if (stateStr && stateStr.includes('|')) {
+            returnUrl = decodeURIComponent(stateStr.split('|')[1]);
+          }
           
-          const deepLink = returnUrl + queryParams;
+          // Ensure queryParams starts with ? or &
+          const separator = returnUrl.includes('?') ? '&' : '?';
+          const deepLink = returnUrl + separator + queryParams.replace('?', '');
+          
           window.location.href = deepLink;
         </script>
       </body>
