@@ -1,0 +1,310 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id               String             @id @default(uuid())
+  email            String             @unique
+  passwordHash     String?
+  name             String
+  role             String             @default("USER")
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  authProvider     String             @default("EMAIL")
+  avatar           String?
+  googleId         String?            @unique
+  mobileNumber     String?            @unique
+  refreshToken     String?
+  password         String?            @default("")
+  aiUsages         AIUsage[]
+  AdminLog         AdminLog[]
+  EmergencyContact EmergencyContact[]
+  HealthInsight    HealthInsight[]
+  HealthTrend      HealthTrend[]
+  HospitalReview   HospitalReview[]
+  reports          MedicalReport[]
+  Notification     Notification[]
+  prescriptions    Prescription[]
+  recommendations  Recommendation[]
+  SavedHospital    SavedHospital[]
+  SearchHistory    SearchHistory[]
+}
+
+model Hospital {
+  id                  String              @id @default(uuid())
+  name                String
+  address             String
+  latitude            Float
+  longitude           Float
+  rating              Float               @default(0.0)
+  phone               String?
+  email               String?
+  website             String?
+  workingHours        String?
+  emergencyAvailable  Boolean             @default(false)
+  recommendationScore Float               @default(0.0)
+  createdAt           DateTime            @default(now())
+  externalId          String?             @unique
+  photoUrl            String?
+  HospitalReview      HospitalReview[]
+  specialties         HospitalSpecialty[]
+  Recommendation      Recommendation[]
+  SavedHospital       SavedHospital[]
+}
+
+model Specialty {
+  id          String              @id @default(uuid())
+  name        String              @unique
+  description String
+  category    String
+  createdAt   DateTime            @default(now())
+  hospitals   HospitalSpecialty[]
+}
+
+model HospitalSpecialty {
+  hospitalId  String
+  specialtyId String
+  departments String
+  averageCost Float     @default(0.0)
+  opdTimings  String    @default("09:00 AM - 05:00 PM")
+  hospital    Hospital  @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+  specialty   Specialty @relation(fields: [specialtyId], references: [id], onDelete: Cascade)
+
+  @@id([hospitalId, specialtyId])
+}
+
+model Prescription {
+  id                   String                 @id @default(uuid())
+  userId               String
+  fileUrl              String
+  rawText              String?
+  status               String                 @default("PENDING")
+  createdAt            DateTime               @default(now())
+  imageUrl             String?                @default("")
+  OCRResult            OCRResult?
+  user                 User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  prescriptionAnalysis PrescriptionAnalysis[]
+
+  @@index([userId, createdAt])
+}
+
+model PrescriptionAnalysis {
+  id                    String       @id @default(uuid())
+  prescriptionId        String
+  medicineName          String
+  dosage                String
+  instructions          String
+  simplifiedExplanation String
+  sideEffects           String
+  drugInteractions      String
+  parsedAt              DateTime     @default(now())
+  chemicalCompound      String?
+  drugClass             String?
+  prescription          Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+}
+
+model MedicalReport {
+  id                       String                     @id @default(uuid())
+  userId                   String
+  fileUrl                  String
+  reportType               String                     @default("GENERAL")
+  rawText                  String?
+  status                   String                     @default("PENDING")
+  reportDate               DateTime                   @default(now())
+  createdAt                DateTime                   @default(now())
+  imageUrl                 String?                    @default("")
+  user                     User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  MedicalReportSummary     MedicalReportSummary?
+  MedicalReportValue       MedicalReportValue[]
+  OCRResult                OCRResult?
+  SpecialistRecommendation SpecialistRecommendation[]
+
+  @@index([userId, createdAt])
+}
+
+model MedicalReportValue {
+  id              String        @id @default(uuid())
+  medicalReportId String
+  key             String
+  value           Float
+  unit            String
+  referenceRange  String
+  isAbnormal      Boolean       @default(false)
+  description     String?
+  category        String
+  biomarker       String?       @default("")
+  reportId        String?       @default("")
+  MedicalReport   MedicalReport @relation(fields: [medicalReportId], references: [id], onDelete: Cascade)
+}
+
+model OCRResult {
+  id              String         @id @default(uuid())
+  prescriptionId  String?        @unique
+  medicalReportId String?        @unique
+  rawText         String
+  confidence      Float          @default(0.0)
+  verifiedData    String?
+  verifiedAt      DateTime?
+  documentUrl     String?        @default("")
+  userId          String?        @default("")
+  MedicalReport   MedicalReport? @relation(fields: [medicalReportId], references: [id], onDelete: Cascade)
+  Prescription    Prescription?  @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+}
+
+model Recommendation {
+  id                  String   @id @default(uuid())
+  userId              String
+  hospitalId          String
+  specialtyMatchScore Float
+  distanceScore       Float
+  ratingScore         Float
+  availabilityScore   Float
+  totalScore          Float
+  explanation         String
+  createdAt           DateTime @default(now())
+  Hospital            Hospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AIUsage {
+  id          String   @id @default(uuid())
+  userId      String
+  feature     String
+  tokensUsed  Int      @default(0)
+  modelName   String   @default("Gemini 2.5 Flash")
+  cost        Float    @default(0.0)
+  processedAt DateTime @default(now())
+  tokens      Int?     @default(0)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AdminLog {
+  id        String   @id
+  userId    String
+  action    String
+  details   String
+  ipAddress String?
+  createdAt DateTime @default(now())
+  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model EmergencyContact {
+  id           String   @id
+  userId       String
+  name         String
+  phoneNumber  String
+  relationship String
+  createdAt    DateTime @default(now())
+  User         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model HealthInsight {
+  id             String   @id
+  userId         String
+  title          String
+  description    String
+  category       String
+  severity       String
+  actionRequired String?
+  createdAt      DateTime @default(now())
+  User           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model HealthTrend {
+  id         String   @id
+  userId     String
+  markerName String
+  value      Float
+  unit       String
+  recordedAt DateTime
+  User       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, recordedAt])
+}
+
+model HospitalReview {
+  id         String   @id
+  hospitalId String
+  userId     String
+  rating     Int
+  reviewText String
+  createdAt  DateTime @default(now())
+  Hospital   Hospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+  User       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([hospitalId])
+  @@index([userId])
+}
+
+model MedicalReportSummary {
+  id                    String        @id
+  medicalReportId       String        @unique
+  healthSummary         String
+  normalFindingsCount   Int           @default(0)
+  abnormalFindingsCount Int           @default(0)
+  overallStatus         String
+  createdAt             DateTime      @default(now())
+  MedicalReport         MedicalReport @relation(fields: [medicalReportId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id
+  userId    String
+  title     String
+  message   String
+  type      String   @default("INFO")
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model OTPVerification {
+  id        String   @id
+  email     String
+  code      String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+}
+
+model SavedHospital {
+  id         String   @id
+  userId     String
+  hospitalId String
+  createdAt  DateTime @default(now())
+  Hospital   Hospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+  User       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, hospitalId])
+}
+
+model SearchHistory {
+  id        String   @id
+  userId    String
+  query     String
+  category  String
+  createdAt DateTime @default(now())
+  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model SpecialistRecommendation {
+  id                       String        @id
+  medicalReportId          String
+  specialtyName            String
+  confidenceScore          Float
+  reason                   String
+  recommendedHospitalsJson String
+  createdAt                DateTime      @default(now())
+  MedicalReport            MedicalReport @relation(fields: [medicalReportId], references: [id], onDelete: Cascade)
+}
