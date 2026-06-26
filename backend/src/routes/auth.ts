@@ -123,24 +123,20 @@ router.post('/check-mobile', (req, res) => {
 
 // Custom Google Auth Proxy for Expo Go
 router.get('/google/proxy', (req, res) => {
-  // We serve a simple HTML page that reads the token from the URL fragment
-  // and deep-links it back into the user's Expo Go app!
   res.send(`
     <html>
       <head><title>Authenticating...</title></head>
       <body>
         <h2>Finishing Google Login...</h2>
         <script>
-          // Extract the hash (e.g., #state=F7P1NEUFkA&id_token=...)
           const hash = window.location.hash || window.location.search;
           
-          // DO NOT read the 'state' parameter as the returnUrl, because 
-          // expo-auth-session randomly generates it as a CSRF token (e.g. "F7P1NEUFkA").
+          // Expo Go sometimes strips URL fragments (#), so we convert it to a query string (?)
+          const queryParams = hash.replace('#', '?');
           
-          const returnUrl = "exp://192.168.1.3:8081/";
+          const returnUrl = "exp://192.168.1.3:8081/--/googleauth";
           
-          // Redirect the mobile app
-          const deepLink = returnUrl + hash;
+          const deepLink = returnUrl + queryParams;
           window.location.href = deepLink;
         </script>
       </body>
