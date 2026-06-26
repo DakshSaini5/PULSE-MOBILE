@@ -111,9 +111,9 @@ router.post('/google', async (req, res) => {
 
     const sessionToken = jwt.encode({ id: user.id }, JWT_SECRET);
     res.json({ token: sessionToken, user });
-  } catch (err) {
+  } catch (err: any) {
     console.error("Google Auth Error:", err);
-    res.status(500).json({ error: 'Server error processing Google auth' });
+    res.status(500).json({ error: `Server error processing Google auth: ${err.message || String(err)}` });
   }
 });
 
