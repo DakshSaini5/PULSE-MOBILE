@@ -1,12 +1,16 @@
 import { Router } from 'express';
 import prescriptionsRouter from './prescriptions';
 import reportsRouter from './reports';
+import dashboardRouter from './dashboard';
 import { authenticate } from '../middleware/auth';
 
 const router = Router();
 
 // Apply authenticate middleware to all routes except public ones
 router.use(authenticate);
+
+// /api/dashboard
+router.use('/dashboard', dashboardRouter);
 
 // /api/prescriptions
 router.use('/prescriptions', prescriptionsRouter);
