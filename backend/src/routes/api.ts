@@ -2,6 +2,7 @@ import { Router } from 'express';
 import prescriptionsRouter from './prescriptions';
 import reportsRouter from './reports';
 import dashboardRouter from './dashboard';
+import emergencyRouter from './emergency';
 import { authenticate } from '../middleware/auth';
 
 const router = Router();
@@ -11,6 +12,9 @@ router.use(authenticate);
 
 // /api/dashboard
 router.use('/dashboard', dashboardRouter);
+
+// /api/emergency
+router.use('/emergency', emergencyRouter);
 
 // /api/prescriptions
 router.use('/prescriptions', prescriptionsRouter);
