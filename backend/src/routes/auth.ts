@@ -131,18 +131,13 @@ router.get('/google/proxy', (req, res) => {
       <body>
         <h2>Finishing Google Login...</h2>
         <script>
-          // Extract the hash (e.g., #id_token=...) or search parameters
+          // Extract the hash (e.g., #state=F7P1NEUFkA&id_token=...)
           const hash = window.location.hash || window.location.search;
           
-          // Google sends the 'state' back either in the search or hash
-          const params = new URLSearchParams(hash.replace('#', '?'));
-          const stateStr = params.get('state');
+          // DO NOT read the 'state' parameter as the returnUrl, because 
+          // expo-auth-session randomly generates it as a CSRF token (e.g. "F7P1NEUFkA").
           
-          let returnUrl = "exp://192.168.1.3:8081/"; // fallback
-          if (stateStr) {
-            // we passed the returnUrl directly in the state parameter
-            returnUrl = stateStr;
-          }
+          const returnUrl = "exp://192.168.1.3:8081/";
           
           // Redirect the mobile app
           const deepLink = returnUrl + hash;
