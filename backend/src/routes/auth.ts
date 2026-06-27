@@ -96,7 +96,7 @@ router.post('/google', async (req, res) => {
 
     const { email, name, picture } = decoded;
 
-    let user = await prisma.user.findFirst({ where: { email } });
+    let user = await prisma.user.findUnique({ where: { email } });
 
     if (!user) {
       user = await prisma.user.create({
@@ -105,6 +105,16 @@ router.post('/google', async (req, res) => {
           name: name || 'Google User',
           authProvider: 'GOOGLE',
           avatar: picture || null,
+          role: 'USER',
+        }
+      });
+    } else {
+      // If user exists (e.g. from website), update their avatar/provider info if needed
+      user = await prisma.user.update({
+        where: { email },
+        data: {
+          authProvider: user.authProvider === 'EMAIL' ? 'GOOGLE' : user.authProvider,
+          avatar: user.avatar || picture || null,
         }
       });
     }

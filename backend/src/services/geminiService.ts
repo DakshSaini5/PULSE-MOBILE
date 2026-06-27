@@ -1,13 +1,16 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 // Use Gemini Flash as requested for fast OCR and reasoning tasks
-const model = genAI.getGenerativeModel({ 
+const getModel = (schema?: any) => genAI.getGenerativeModel({ 
   model: 'gemini-2.5-flash',
-  generationConfig: { responseMimeType: "application/json" }
+  generationConfig: { 
+    responseMimeType: "application/json",
+    ...(schema && { responseSchema: schema })
+  }
 });
 
 export const analyzeMedicalDocument = async (
@@ -23,8 +26,30 @@ export const analyzeMedicalDocument = async (
   };
 
   let prompt = '';
+  let schema: any = undefined;
 
   if (type === 'prescription') {
+    schema = {
+      type: SchemaType.OBJECT,
+      properties: {
+        medicines: {
+          type: SchemaType.ARRAY,
+          items: {
+            type: SchemaType.OBJECT,
+            properties: {
+              medicineName: { type: SchemaType.STRING },
+              dosage: { type: SchemaType.STRING },
+              instructions: { type: SchemaType.STRING },
+              simplifiedExplanation: { type: SchemaType.STRING },
+              sideEffects: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+              drugInteractions: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } }
+            },
+            required: ["medicineName", "dosage", "instructions", "simplifiedExplanation", "sideEffects", "drugInteractions"]
+          }
+        }
+      },
+      required: ["medicines"]
+    };
     prompt = `You are a highly precise clinical pharmacist AI. Your ONLY job is to extract and structure data from the provided prescription image.
 STRICT RULES:
 1. NO HALLUCINATIONS: You must NEVER invent, assume, or guess a medicine name, dosage, or instruction. 
@@ -46,6 +71,26 @@ Return strictly in this JSON format:
   ]
 }`;
   } else if (type === 'report') {
+    schema = {
+      type: SchemaType.OBJECT,
+      properties: {
+        biomarkers: {
+          type: SchemaType.ARRAY,
+          items: {
+            type: SchemaType.OBJECT,
+            properties: {
+              key: { type: SchemaType.STRING },
+              value: { type: SchemaType.STRING },
+              unit: { type: SchemaType.STRING },
+              referenceRange: { type: SchemaType.STRING },
+              isAbnormal: { type: SchemaType.BOOLEAN }
+            },
+            required: ["key", "value", "unit", "referenceRange", "isAbnormal"]
+          }
+        }
+      },
+      required: ["biomarkers"]
+    };
     prompt = `You are a highly precise clinical lab technician AI. Your ONLY job is to extract biomarker data from the provided lab report image.
 STRICT RULES:
 1. NO HALLUCINATIONS: Do not invent biomarkers not listed on the page.
@@ -69,7 +114,8 @@ Return strictly in this JSON format:
   }
 
   try {
-    const result = await model.generateContent([inlineData, prompt]);
+    const modelInstance = getModel(schema);
+    const result = await modelInstance.generateContent([inlineData, prompt]);
     const response = await result.response;
     const text = response.text();
     
@@ -111,7 +157,34 @@ Return strictly in this JSON format:
 }`;
 
   try {
-    const result = await model.generateContent(prompt);
+    const summarySchema = {
+      type: SchemaType.OBJECT,
+      properties: {
+        summary: {
+          type: SchemaType.OBJECT,
+          properties: {
+            healthSummary: { type: SchemaType.STRING },
+            overallStatus: { type: SchemaType.STRING }
+          },
+          required: ["healthSummary", "overallStatus"]
+        },
+        specialists: {
+          type: SchemaType.ARRAY,
+          items: {
+            type: SchemaType.OBJECT,
+            properties: {
+              specialtyName: { type: SchemaType.STRING },
+              confidenceScore: { type: SchemaType.NUMBER },
+              reason: { type: SchemaType.STRING }
+            },
+            required: ["specialtyName", "confidenceScore", "reason"]
+          }
+        }
+      },
+      required: ["summary", "specialists"]
+    };
+    const modelInstance = getModel(summarySchema);
+    const result = await modelInstance.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
     

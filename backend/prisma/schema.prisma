@@ -22,6 +22,11 @@ model User {
   mobileNumber     String?            @unique
   refreshToken     String?
   password         String?            @default("")
+  age              Int?
+  weight           String?
+  gender           String?
+  bloodGroup       String?
+  medicalConditions String?
   aiUsages         AIUsage[]
   AdminLog         AdminLog[]
   EmergencyContact EmergencyContact[]
