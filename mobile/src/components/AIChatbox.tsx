@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { io, Socket } from 'socket.io-client';
 import * as SecureStore from 'expo-secure-store';
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.3:3000';
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL as string;
 
 const MOCK_SUGGESTIONS = [
   "Find hospitals near me",

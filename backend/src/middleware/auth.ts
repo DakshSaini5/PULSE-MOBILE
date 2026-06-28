@@ -1,7 +1,7 @@
 import { Response, NextFunction } from 'express';
 import jwt from 'jwt-simple';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-for-mvp';
+const JWT_SECRET = process.env.JWT_SECRET as string;
 
 export const authenticate = (req: any, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;

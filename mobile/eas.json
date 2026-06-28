@@ -12,7 +12,19 @@
       "distribution": "internal"
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://pulse-mobile-production.up.railway.app",
+        "EXPO_PUBLIC_OAUTH_REDIRECT": "https://pulse-mobile-production.up.railway.app/api/auth/google/proxy",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "367526945989-ebnif0f9q0s080kab2clgd42d10qqhok.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "367526945989-hedogivo1tubjtubf0vtu079akqlap3m.apps.googleusercontent.com"
+      }
+    },
+    "apk": {
+      "extends": "production",
+      "android": {
+        "buildType": "apk"
+      }
     }
   },
   "submit": {

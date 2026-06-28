@@ -4,7 +4,7 @@ import jwt from 'jwt-simple';
 import { prisma } from '../index';
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-for-mvp';
+const JWT_SECRET = process.env.JWT_SECRET as string;
 
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
@@ -144,7 +144,7 @@ router.get('/google/proxy', (req, res) => {
           const params = new URLSearchParams(queryParams);
           const stateStr = params.get('state');
           
-          let returnUrl = "exp://192.168.1.3:8081/";
+          let returnUrl = "pulse://";
           if (stateStr && stateStr.includes('|')) {
             returnUrl = decodeURIComponent(stateStr.split('|')[1]);
           }

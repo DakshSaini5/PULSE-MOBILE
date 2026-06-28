@@ -13,7 +13,10 @@ import { syncSpecialties } from './utils/syncSpecialties';
 
 dotenv.config();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-for-mvp';
+if (!process.env.JWT_SECRET) {
+  throw new Error('CRITICAL: JWT_SECRET environment variable is not defined.');
+}
+const JWT_SECRET = process.env.JWT_SECRET as string;
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
@@ -52,7 +55,7 @@ const riskScoreLimiter = rateLimit({
   max: 10,
 });
 
-app.use(cors());
+app.use(cors({ origin: process.env.FRONTEND_URL || '*' })); // Set FRONTEND_URL in production to restrict access
 app.use(express.json());
 
 // Apply limiters to generic routes as example (would be scoped in a real router)
@@ -216,6 +219,12 @@ YOUR STRICT RULES:
   socket.on('disconnect', () => {
     console.log('User disconnected:', socket.id);
   });
+});
+
+// Global Error Handler
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('[Global Error]:', err.stack || err.message);
+  res.status(err.status || 500).json({ error: 'Internal Server Error' });
 });
 
 const PORT = process.env.PORT || 3000;

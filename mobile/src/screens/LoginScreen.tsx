@@ -28,9 +28,9 @@ export const LoginScreen = () => {
   const [request, response, promptAsync] = Google.useAuthRequest({
     clientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
     responseType: 'id_token',
-    redirectUri: 'https://pulse-mobile-production.up.railway.app/api/auth/google/proxy',
+    redirectUri: process.env.EXPO_PUBLIC_OAUTH_REDIRECT,
     extraParams: {
-      state: AuthSession.makeRedirectUri({ scheme: 'exp' }) + '--/googleauth'
+      state: AuthSession.makeRedirectUri() + '--/googleauth'
     }
   });
 
@@ -40,7 +40,7 @@ export const LoginScreen = () => {
       return;
     }
     try {
-      const returnUrl = AuthSession.makeRedirectUri({ scheme: 'exp' });
+      const returnUrl = AuthSession.makeRedirectUri();
       // Inject the returnUrl into the state parameter by piping it |
       const modifiedUrl = request.url.replace(/(state=[^&]+)/, `$1|${encodeURIComponent(returnUrl)}`);
       
