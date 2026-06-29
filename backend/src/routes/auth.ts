@@ -2,6 +2,9 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jwt-simple';
 import { prisma } from '../index';
+import { OAuth2Client } from 'google-auth-library';
+
+const googleClient = new OAuth2Client('367526945989-ebnif0f9q0s080kab2clgd42d10qqhok.apps.googleusercontent.com');
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET as string;
@@ -89,12 +92,17 @@ router.post('/google', async (req, res) => {
   }
 
   try {
-    const decoded = jsonwebtoken.decode(token) as any;
-    if (!decoded || !decoded.email) {
+    const ticket = await googleClient.verifyIdToken({
+      idToken: token,
+      audience: '367526945989-ebnif0f9q0s080kab2clgd42d10qqhok.apps.googleusercontent.com',
+    });
+    
+    const payload = ticket.getPayload();
+    if (!payload || !payload.email) {
       return res.status(400).json({ error: 'Invalid Google token' });
     }
 
-    const { email, name, picture } = decoded;
+    const { email, name, picture } = payload;
 
     let user = await prisma.user.findUnique({ where: { email } });
 
