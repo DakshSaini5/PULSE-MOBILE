@@ -86,14 +86,15 @@ router.post('/register/send-otp', (req, res) => {
 import jsonwebtoken from 'jsonwebtoken';
 
 router.post('/google', async (req, res) => {
-  const { token } = req.body;
-  if (!token) {
+  const { token, credential } = req.body;
+  const actualToken = token || credential;
+  if (!actualToken) {
     return res.status(400).json({ error: 'No token provided' });
   }
 
   try {
     const ticket = await googleClient.verifyIdToken({
-      idToken: token,
+      idToken: actualToken,
       audience: '367526945989-ebnif0f9q0s080kab2clgd42d10qqhok.apps.googleusercontent.com',
     });
     
