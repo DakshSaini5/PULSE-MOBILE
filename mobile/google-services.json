@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "367526945989-ljen6afv3srmtoq9t1a5da1782sqph9s.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.pulsehealthcare.app",
+            "certificate_hash": "c86531be4cae5beeb75556c40f2f677f53e742ff"
+          }
+        },
+        {
           "client_id": "367526945989-ebnif0f9q0s080kab2clgd42d10qqhok.apps.googleusercontent.com",
           "client_type": 3
         }
