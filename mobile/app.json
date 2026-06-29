@@ -2,7 +2,6 @@
   "expo": {
     "name": "Pulse-App",
     "slug": "Pulse-App",
-    "scheme": "pulseapp",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -19,7 +18,12 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "config": {
+        "googleMaps": {
+          "apiKey": "dummy_key_to_prevent_crash_when_using_osm"
+        }
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -27,8 +31,7 @@
     "plugins": [
       "expo-secure-store",
       "@react-native-google-signin/google-signin",
-      "expo-location",
-      "expo-notifications"
+      "expo-location"
     ],
     "extra": {
       "eas": {
