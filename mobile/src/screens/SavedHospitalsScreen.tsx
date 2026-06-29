@@ -1,5 +1,6 @@
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, ActivityIndicator, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Linking } from 'react-native';
 import { hospitalAPI, Hospital } from '../services/api';
 import { Heart, MapPin, Star, AlertCircle, PhoneCall, ArrowRight } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';

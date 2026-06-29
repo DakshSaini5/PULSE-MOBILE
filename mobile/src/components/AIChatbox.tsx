@@ -1,5 +1,6 @@
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useRef, useEffect } from "react"
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Modal, KeyboardAvoidingView, Platform, SafeAreaView } from "react-native"
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Modal, KeyboardAvoidingView, Platform } from 'react-native'
 import { MessageCircle, X, Send, Sparkles, Bot, Flag } from "lucide-react-native"
 import { PulseLogo } from "./PulseLogo"
 import io, { Socket } from 'socket.io-client';

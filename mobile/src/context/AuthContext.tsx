@@ -1,14 +1,23 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import * as SecureStore from 'expo-secure-store';
-import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { authAPI } from '../services/api';
+let GoogleSignin: any = null;
+let statusCodes: any = {};
 
 try {
- GoogleSignin.configure({
- webClientId: '367526945989-ebnif0f9q0s080kab2clgd42d10qqhok.apps.googleusercontent.com',
- });
+  const RNGoogleSignin = require('@react-native-google-signin/google-signin');
+  GoogleSignin = RNGoogleSignin.GoogleSignin;
+  statusCodes = RNGoogleSignin.statusCodes;
+  
+  GoogleSignin.configure({
+    webClientId: '367526945989-ebnif0f9q0s080kab2clgd42d10qqhok.apps.googleusercontent.com',
+  });
 } catch (e) {
- console.log('GoogleSignin configure failed', e);
+  console.log('GoogleSignin native module not found (likely running in Expo Go). Google Login will be disabled.');
+  GoogleSignin = {
+    hasPlayServices: async () => false,
+    signIn: async () => { throw new Error('Not available in Expo Go'); }
+  };
 }
 
 interface User {
@@ -38,7 +47,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
  useEffect(() => {
  const initAuth = async () => {
- try {
+  // BYPASS LOGIN FOR UI TESTING
+  setUser({
+    id: 'test-123',
+    name: 'UI Tester',
+    email: 'tester@pulse.com',
+    role: 'user'
+  });
+  setLoading(false);
+  return;
+  
+  try {
  const storedToken = await SecureStore.getItemAsync('pulse_token');
  if (!storedToken) {
  // No token at all — nothing to hydrate

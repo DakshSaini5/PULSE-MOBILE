@@ -1,5 +1,6 @@
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, SafeAreaView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { ShieldAlert, Users, Database, FileText, ArrowLeft, Trash2, ShieldCheck, Activity } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';

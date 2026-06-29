@@ -161,10 +161,10 @@ export const HospitalDetailScreen = () => {
  <Text className="text-[10px] text-foreground font-bold">{spec.opdTimings}</Text>
  </View>
  <View className="mt-1.5 flex-row justify-between items-center">
- <Text className="text-[10px] text-muted-foreground font-semibold">Avg. Fee</Text>
- <Text className="text-[10px] text-foreground font-bold">
- {spec.averageCost > 0 ? `₹${spec.averageCost}` : 'Contact Hospital'}
- </Text>
+ <Text className="text-[10px] text-muted-foreground font-semibold">More Info</Text>
+ <TouchableOpacity onPress={() => Linking.openURL(`https://www.google.com/search?q=${encodeURIComponent(hospital.name)}`)}>
+ <Text className="text-[10px] text-primary font-bold">Search on Google</Text>
+ </TouchableOpacity>
  </View>
  </View>
  ))}

@@ -1,5 +1,6 @@
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { View, Text, TouchableOpacity, SafeAreaView, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 
 // TODO: Use expo-updates for a true hard reload: import * as Updates from 'expo-updates';

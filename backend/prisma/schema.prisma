@@ -39,6 +39,7 @@ model User {
   recommendations  Recommendation[]
   SavedHospital    SavedHospital[]
   SearchHistory    SearchHistory[]
+  documentScans    DocumentScan[]
 }
 
 model Hospital {
@@ -312,4 +313,53 @@ model SpecialistRecommendation {
   recommendedHospitalsJson String
   createdAt                DateTime      @default(now())
   MedicalReport            MedicalReport @relation(fields: [medicalReportId], references: [id], onDelete: Cascade)
+}
+
+enum ScanType {
+  PRESCRIPTION
+  LAB_REPORT
+  UNKNOWN
+}
+
+enum ScanStatus {
+  PENDING
+  PROCESSED
+  FAILED
+}
+
+model DocumentScan {
+  id          String       @id @default(uuid())
+  userId        String
+  fileUrl       String
+  type          ScanType
+  status        ScanStatus
+  createdAt     DateTime     @default(now())
+  aiSummaryJson String?
+  medications   Medication[]
+  labResults    LabResult[]
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Medication {
+  id                    String       @id @default(uuid())
+  documentScanId        String
+  name                  String
+  dosage                String
+  frequency             String
+  durationDays          Int
+  simplifiedExplanation String?
+  sideEffects           String?
+  drugInteractions      String?
+  documentScan          DocumentScan @relation(fields: [documentScanId], references: [id], onDelete: Cascade)
+}
+
+model LabResult {
+  id             String       @id @default(uuid())
+  documentScanId String
+  name           String
+  value          Float
+  unit           String
+  referenceRange String
+  isAbnormal     Boolean      @default(false)
+  documentScan   DocumentScan @relation(fields: [documentScanId], references: [id], onDelete: Cascade)
 }

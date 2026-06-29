@@ -345,6 +345,14 @@ export const authAPI = {
 };
 
 export const hospitalAPI = {
+  searchGlobal: async (query: string) => {
+    const res = await api.get('/api/hospitals/search', { params: { query } });
+    return res.data as Hospital[];
+  },
+  getNearby: async (lat: number, lng: number, radius: number = 5) => {
+    const res = await api.get('/api/hospitals/nearby', { params: { lat, lng, radius } });
+    return res.data as Hospital[];
+  },
  search: async (query: string, specialty: string, maxDistance: number, lat?: number, lng?: number, city?: string) => {
  const res = await api.get('/api/hospitals', {
  params: { query, specialty, maxDistance, lat, lng, city },

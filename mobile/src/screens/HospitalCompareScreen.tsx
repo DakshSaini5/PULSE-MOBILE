@@ -1,5 +1,6 @@
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState } from 'react';
-import { View, Text, ScrollView, SafeAreaView, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
 import { GitCompareArrows, Star, MapPin, CheckCircle2, Plus, Sparkles, Clock } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { Badge } from '../components/ui/badge';
