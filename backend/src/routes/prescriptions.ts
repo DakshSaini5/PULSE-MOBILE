@@ -37,7 +37,7 @@ router.post('/upload', upload.single('file'), async (req: any, res: any) => {
         imageUrl: cloudinaryUrl,      // our new column (same URL)
         status: 'COMPLETED',
         prescriptionAnalysis: {
-          create: aiData.medicines.map((med: any) => ({
+          create: (aiData.medicines || []).map((med: any) => ({
             medicineName: med.medicineName || 'UNREADABLE',
             dosage: med.dosage || 'UNREADABLE',
             instructions: med.instructions || 'Not provided',

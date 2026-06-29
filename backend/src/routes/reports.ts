@@ -36,7 +36,7 @@ router.post('/upload', upload.single('file'), async (req: any, res: any) => {
         reportType: 'LAB_REPORT',
         status: 'COMPLETED',
         MedicalReportValue: {
-          create: aiData.biomarkers.map((bm: any) => ({
+          create: (aiData.biomarkers || []).map((bm: any) => ({
             key: bm.key || '',
             biomarker: bm.key || '',           // our added column
             value: parseFloat(bm.value) || 0,
