@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "367526945989",
+    "project_id": "fine-byway-497917-h9",
+    "storage_bucket": "fine-byway-497917-h9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:367526945989:android:b885c92016738e36dfbcac",
+        "android_client_info": {
+          "package_name": "com.pulsehealthcare.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "367526945989-ebnif0f9q0s080kab2clgd42d10qqhok.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAiV06a3ITpRseL25hNTeF2TJ6OMX6vEac"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "367526945989-ebnif0f9q0s080kab2clgd42d10qqhok.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
