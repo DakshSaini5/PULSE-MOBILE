@@ -6,7 +6,7 @@ dotenv.config();
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 // Use Gemini Flash as requested for fast OCR and reasoning tasks
 const getModel = (schema?: any) => genAI.getGenerativeModel({ 
-  model: 'gemini-2.5-flash',
+  model: 'gemini-1.5-flash',
   generationConfig: { 
     responseMimeType: "application/json",
     ...(schema && { responseSchema: schema })
