@@ -51,12 +51,12 @@ export const Map: React.FC<MapProps> = ({
  style={StyleSheet.absoluteFillObject}
  provider={Platform.OS === 'ios' ? undefined : undefined} // undefined uses default provider
  initialRegion={{
- latitude: userLat,
- longitude: userLng,
+ latitude: userLat || 28.6139,
+ longitude: userLng || 77.2090,
  latitudeDelta: 0.1,
  longitudeDelta: 0.1,
  }}
- showsUserLocation={true}
+ showsUserLocation={false}
  mapType={Platform.OS === 'android' ? "none" : "standard"} // 'none' hides Google's base map on Android so we just see OSM
  >
  {/* Use OpenStreetMap Tiles to bypass Google Maps billing */}
@@ -67,19 +67,17 @@ export const Map: React.FC<MapProps> = ({
  />
 
  <Marker 
- coordinate={{ latitude: userLat, longitude: userLng }}
+ coordinate={{ latitude: userLat || 28.6139, longitude: userLng || 77.2090 }}
  title="Your Location"
  pinColor="green"
- tracksViewChanges={false}
  />
 
  {hospitals.map(hosp => (
  <Marker
  key={hosp.id}
- coordinate={{ latitude: hosp.latitude, longitude: hosp.longitude }}
+ coordinate={{ latitude: hosp.latitude || 0, longitude: hosp.longitude || 0 }}
  pinColor={hosp.id === selectedHospitalId ? "blue" : "red"}
  onPress={() => onSelectHospital(hosp.id)}
- tracksViewChanges={false}
  >
  <Callout onPress={() => {
  if (onViewDetails) {

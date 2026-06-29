@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StatusBar } from 'react-native';
-import { SafeScreen as SafeAreaView } from '../components/SafeScreen';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowRight, Sparkles, LogIn, Brain, MapPin, ShieldCheck } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
@@ -30,7 +30,7 @@ export const LandingScreen = () => {
  ];
 
  return (
- <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-background">
+ <SafeAreaView className="flex-1 bg-background">
  <StatusBar barStyle="default" />
  <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 40 }} className="flex-1">
  
@@ -43,7 +43,7 @@ export const LandingScreen = () => {
  className="border-border rounded-full"
  onPress={() => navigation.navigate('Login')}
  >
- <LogIn size={16} color="#2563EB" style={{ marginRight: 6 }} />
+ <LogIn size={16} color="#ef4444" style={{ marginRight: 6 }} />
  <Text className="text-foreground font-medium text-sm">Sign In</Text>
  </Button>
  </View>
@@ -54,7 +54,7 @@ export const LandingScreen = () => {
  {/* Label */}
  <View className="flex-row items-center gap-2 mb-6 bg-primary/10 self-start px-4 py-2 rounded-full border border-primary/20">
  <View className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center">
- <Sparkles size={12} color="#2563EB" />
+ <Sparkles size={12} color="#ef4444" />
  </View>
  <Text className="text-xs font-bold tracking-widest text-primary uppercase">
  Pulse Healthcare
@@ -114,7 +114,7 @@ export const LandingScreen = () => {
  return (
  <View key={i} className="flex-row items-center gap-4">
  <View className="h-12 w-12 rounded-2xl bg-secondary/50 flex items-center justify-center border border-border">
- <Icon size={22} color="#2563EB" />
+ <Icon size={22} color="#ef4444" />
  </View>
  <View>
  <Text className="font-bold text-foreground text-base">{f.label}</Text>
@@ -135,7 +135,7 @@ export const LandingScreen = () => {
  </View>
  <View className="w-px h-4 bg-border" />
  <View className="flex-row items-center gap-2">
- <Sparkles size={16} color="#2563EB" />
+ <Sparkles size={16} color="#ef4444" />
  <Text className="text-xs font-semibold text-muted-foreground">Gemini AI</Text>
  </View>
  <View className="w-px h-4 bg-border" />
@@ -157,6 +157,3 @@ export const LandingScreen = () => {
 };
 
 export default LandingScreen;
-
-
-
