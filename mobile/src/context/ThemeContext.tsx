@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { useColorScheme as useNativeWindColorScheme } from 'nativewind';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useColorScheme } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 
 interface ThemeContextType {
@@ -10,38 +10,35 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
- const { colorScheme, setColorScheme } = useNativeWindColorScheme();
+ const systemColorScheme = useColorScheme();
  const [isDarkMode, setIsDarkMode] = useState(false);
 
  useEffect(() => {
-  const initTheme = async () => {
-    try {
-      const savedTheme = await SecureStore.getItemAsync('pulse_theme');
-      if (savedTheme === 'dark') {
-        setColorScheme('dark');
-        setIsDarkMode(true);
-      } else {
-        setColorScheme('light');
-        setIsDarkMode(false);
-      }
-    } catch (e) {
-      console.error("Error loading theme preference:", e);
-      setColorScheme('light');
-      setIsDarkMode(false);
-    }
-  };
-  initTheme();
- }, [setColorScheme]);
+ const initTheme = async () => {
+ try {
+ const savedTheme = await SecureStore.getItemAsync('pulse_theme');
+ // Force light mode by default, ignore OS preference as per original web logic
+ if (savedTheme === 'dark') {
+ setIsDarkMode(true);
+ } else {
+ setIsDarkMode(false);
+ }
+ } catch (e) {
+ console.error("Error loading theme preference:", e);
+ setIsDarkMode(false);
+ }
+ };
+ initTheme();
+ }, []);
 
  const toggleTheme = async () => {
-  const newTheme = colorScheme === 'dark' ? 'light' : 'dark';
-  setColorScheme(newTheme);
-  setIsDarkMode(newTheme === 'dark');
-  try {
-    await SecureStore.setItemAsync('pulse_theme', newTheme);
-  } catch (e) {
-    console.error("Error saving theme preference:", e);
-  }
+ const newTheme = !isDarkMode;
+ setIsDarkMode(newTheme);
+ try {
+ await SecureStore.setItemAsync('pulse_theme', newTheme ? 'dark' : 'light');
+ } catch (e) {
+ console.error("Error saving theme preference:", e);
+ }
  };
 
  return (

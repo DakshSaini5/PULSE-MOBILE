@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { Activity, Search, FileText, User as UserIcon, ShieldAlert, Wind } from 'lucide-react-native';
+import { Activity, Search, FileText, User as UserIcon, ShieldAlert } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { useUserLocation } from '../context/LocationContext';
 import { emergencyAPI, EmergencyContact } from '../services/api';
 
-import BreathingCuesModal from './BreathingCuesModal';
-import PanicActionModal from './PanicActionModal';
+// TODO: Replace toast with native toast component
+// import toast from 'react-hot-toast';
 
 export const MobileBottomNav: React.FC = () => {
  const { user } = useAuth();
@@ -16,7 +16,6 @@ export const MobileBottomNav: React.FC = () => {
  const route = useRoute();
  
  const [showPanicModal, setShowPanicModal] = useState(false);
- const [showBreathingModal, setShowBreathingModal] = useState(false);
  const [contacts, setContacts] = useState<EmergencyContact[]>([]);
  const [panicLoading, setPanicLoading] = useState(false);
 
@@ -28,9 +27,9 @@ export const MobileBottomNav: React.FC = () => {
  }
  }, [user]);
 
-  const isActive = (tabName: string) => {
-    return route.name === tabName;
-  };
+ const isActive = (path: string) => {
+ return route.name.toLowerCase() === path.replace('/', '').toLowerCase();
+ };
 
  const triggerPanic = async () => {
  if (contacts.length === 0) {
@@ -56,6 +55,7 @@ export const MobileBottomNav: React.FC = () => {
 
  const handlePanicClick = () => {
  setShowPanicModal(true);
+ triggerPanic();
  };
 
  if (!user) return null;
@@ -65,61 +65,40 @@ export const MobileBottomNav: React.FC = () => {
  <View className="absolute bottom-0 left-0 right-0 z-50 bg-card border-t border-border pb-5">
  <View className="flex flex-row items-center justify-around px-2 py-2">
  
-  <TouchableOpacity onPress={() => navigation.navigate('SearchTab')} className="flex flex-col items-center gap-1 px-3 py-1">
-  <Search size={20} color={isActive('SearchTab') ? '#2563EB' : '#64748b'} />
-  <Text className={`text-[10px] font-medium ${isActive('SearchTab') ? 'text-primary' : 'text-muted-foreground'}`}>Discover</Text>
-  </TouchableOpacity>
-
-  <TouchableOpacity onPress={() => navigation.navigate('PrescriptionTab')} className="flex flex-col items-center gap-1 px-3 py-1">
-  <FileText size={20} color={isActive('PrescriptionTab') ? '#2563EB' : '#64748b'} />
-  <Text className={`text-[10px] font-medium ${isActive('PrescriptionTab') ? 'text-primary' : 'text-muted-foreground'}`}>Records</Text>
-  </TouchableOpacity>
-
-  <TouchableOpacity 
-  onPress={handlePanicClick}
-  disabled={panicLoading}
-  className="flex flex-col items-center gap-1 -mt-6 active:opacity-80"
-  >
-  <View className="h-14 w-14 rounded-full bg-destructive flex items-center justify-center border-4 border-card shadow-lg">
-  {panicLoading ? <Activity size={24} color="white" /> : <ShieldAlert size={24} color="white" />}
-  </View>
-  <Text className="text-[10px] font-bold text-destructive tracking-wide mt-1">PANIC</Text>
-  </TouchableOpacity>
-
-  <TouchableOpacity onPress={() => navigation.navigate('HealthTrendsTab')} className="flex flex-col items-center gap-1 px-3 py-1">
-  <Activity size={20} color={isActive('HealthTrendsTab') ? '#2563EB' : '#64748b'} />
-  <Text className={`text-[10px] font-medium ${isActive('HealthTrendsTab') ? 'text-primary' : 'text-muted-foreground'}`}>Trends</Text>
-  </TouchableOpacity>
-
-  <TouchableOpacity onPress={() => navigation.navigate('ProfileTab')} className="flex flex-col items-center gap-1 px-3 py-1">
-  <UserIcon size={20} color={isActive('ProfileTab') ? '#2563EB' : '#64748b'} />
-  <Text className={`text-[10px] font-medium ${isActive('ProfileTab') ? 'text-primary' : 'text-muted-foreground'}`}>Profile</Text>
-  </TouchableOpacity>
-
- </View>
- </View>
- 
- <TouchableOpacity 
- onPress={() => setShowBreathingModal(true)}
- className="absolute bottom-[90px] left-4 h-12 w-12 bg-sky-500 rounded-full flex items-center justify-center shadow-lg border-2 border-white dark:border-slate-900 z-40"
- >
- <Wind size={22} color="white" />
+ <TouchableOpacity onPress={() => navigation.navigate('Search')} className="flex flex-col items-center gap-1 px-3 py-1">
+ <Search size={20} color={isActive('/search') ? '#2563EB' : '#64748b'} />
+ <Text className={`text-[10px] font-medium ${isActive('/search') ? 'text-primary' : 'text-muted-foreground'}`}>Discover</Text>
  </TouchableOpacity>
 
- <BreathingCuesModal 
- isOpen={showBreathingModal} 
- onClose={() => setShowBreathingModal(false)} 
- emergencyContactPhone={contacts.length > 0 ? contacts[0].phoneNumber : undefined}
- emergencyContactName={contacts.length > 0 ? contacts[0].name : undefined}
- />
+ <TouchableOpacity onPress={() => navigation.navigate('Prescriptions')} className="flex flex-col items-center gap-1 px-3 py-1">
+ <FileText size={20} color={isActive('/prescriptions') ? '#2563EB' : '#64748b'} />
+ <Text className={`text-[10px] font-medium ${isActive('/prescriptions') ? 'text-primary' : 'text-muted-foreground'}`}>Records</Text>
+ </TouchableOpacity>
 
- <PanicActionModal 
- isOpen={showPanicModal}
- onClose={() => setShowPanicModal(false)}
- primaryContactPhone={contacts.length > 0 ? contacts[0].phoneNumber : undefined}
- primaryContactName={contacts.length > 0 ? contacts[0].name : undefined}
- onTriggerSilentPanic={triggerPanic}
- />
+ <TouchableOpacity 
+ onPress={handlePanicClick}
+ disabled={panicLoading}
+ className="flex flex-col items-center gap-1 -mt-6 active:opacity-80"
+ >
+ <View className="h-14 w-14 rounded-full bg-destructive flex items-center justify-center border-4 border-card">
+ {panicLoading ? <Activity size={24} color="white" /> : <ShieldAlert size={24} color="white" />}
+ </View>
+ <Text className="text-[10px] font-bold text-destructive tracking-wide">PANIC</Text>
+ </TouchableOpacity>
+
+ <TouchableOpacity onPress={() => navigation.navigate('Trends')} className="flex flex-col items-center gap-1 px-3 py-1">
+ <Activity size={20} color={isActive('/trends') ? '#2563EB' : '#64748b'} />
+ <Text className={`text-[10px] font-medium ${isActive('/trends') ? 'text-primary' : 'text-muted-foreground'}`}>Trends</Text>
+ </TouchableOpacity>
+
+ <TouchableOpacity onPress={() => navigation.navigate('Profile')} className="flex flex-col items-center gap-1 px-3 py-1">
+ <UserIcon size={20} color={isActive('/profile') ? '#2563EB' : '#64748b'} />
+ <Text className={`text-[10px] font-medium ${isActive('/profile') ? 'text-primary' : 'text-muted-foreground'}`}>Profile</Text>
+ </TouchableOpacity>
+
+ </View>
+ </View>
+ {/* TODO: Add BreathingCuesModal implementation */}
  </>
  );
 };

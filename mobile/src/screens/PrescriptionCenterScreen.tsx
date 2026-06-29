@@ -1,36 +1,46 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Platform } from 'react-native';
-import { SafeScreen as SafeAreaView } from '../components/SafeScreen';
-import { useAuth } from '../context/AuthContext';
+import { View, Text, ScrollView, SafeAreaView, ActivityIndicator, TouchableOpacity, TextInput, Alert, Platform } from 'react-native';
 import { prescriptionAPI, Prescription } from '../services/api';
-import { FileText, UploadCloud, FileSearch, CheckCircle2, Clock, ChevronRight } from 'lucide-react-native';
+import { ClipboardList, UploadCloud, Trash2, Plus, FileText, Sparkles, Activity, ShieldCheck, CheckCircle } from 'lucide-react-native';
+import { useAuth } from '../context/AuthContext';
 import * as ImagePicker from 'expo-image-picker';
-import * as SecureStore from 'expo-secure-store';
+import { useNavigation } from '@react-navigation/native';
 
 export const PrescriptionCenterScreen = () => {
-  const { user } = useAuth();
-  const [history, setHistory] = useState<Prescription[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
-  const [latestAnalysis, setLatestAnalysis] = useState<Prescription | null>(null);
-  const [loadingMessage, setLoadingMessage] = useState("Encrypting and uploading image...");
-  const timeoutIds = React.useRef<NodeJS.Timeout[]>([]);
+ const { user } = useAuth();
+ const navigation = useNavigation<any>();
 
-  useEffect(() => {
-    fetchHistory();
-  }, [user]);
+ const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
+ const [loading, setLoading] = useState(true);
+ const [uploading, setUploading] = useState(false);
+ 
+ // Views: 'list' | 'detail' | 'verify'
+ const [view, setView] = useState<'list' | 'detail' | 'verify'>('list');
+ const [activePrescription, setActivePrescription] = useState<Prescription | null>(null);
+ 
+ const [rawText, setRawText] = useState('');
+ const [medicineFields, setMedicineFields] = useState<Array<{ name: string; dosage: string; instructions: string }>>([]);
+ const [verifying, setVerifying] = useState(false);
+ 
+ const [checkingInteractions, setCheckingInteractions] = useState(false);
+ const [interactionResult, setInteractionResult] = useState<{ interactions: string, severity: string, checked: number } | null>(null);
 
-  const fetchHistory = async () => {
-    setLoading(true);
-    try {
-      const data = await prescriptionAPI.getAll();
-      setHistory(data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+ const fetchPrescriptions = async () => {
+ if (!user) return;
+ setLoading(true);
+ try {
+ const data = await prescriptionAPI.getAll();
+ setPrescriptions(data);
+ } catch (err) {
+ console.error(err);
+ } finally {
+ setLoading(false);
+ }
+ };
+
+ useEffect(() => {
+ fetchPrescriptions();
+ }, []);
 
   const handleImagePick = async () => {
     try {
@@ -41,217 +51,305 @@ export const PrescriptionCenterScreen = () => {
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: false,
         quality: 1,
+        allowsMultipleSelection: true,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        handleUpload(result.assets[0]);
+        setUploading(true);
+        const uploadedList: Prescription[] = [];
+        let lastRes: Prescription | null = null;
+
+        for (const asset of result.assets) {
+          const file = {
+            uri: asset.uri,
+            name: asset.fileName || 'prescription.jpg',
+            type: asset.mimeType || 'image/jpeg',
+          } as any;
+
+          const res = await prescriptionAPI.upload(file);
+          uploadedList.push(res);
+          lastRes = res;
+        }
+
+        setPrescriptions(prev => [...uploadedList, ...prev]);
+
+        if (lastRes) {
+          handleSelectPrescription(lastRes);
+          Alert.alert('Success', 'Prescription analyzed successfully!');
+        }
       }
     } catch (err) {
       console.error(err);
-      Alert.alert('Error', 'Failed to pick image');
-    }
-  };
-
-  const handleUpload = async (asset: ImagePicker.ImagePickerAsset) => {
-    setUploading(true);
-    setLatestAnalysis(null);
-    setLoadingMessage("Encrypting and uploading image...");
-
-    timeoutIds.current.push(setTimeout(() => setLoadingMessage("Squinting at the doctor's handwriting..."), 1200));
-    timeoutIds.current.push(setTimeout(() => setLoadingMessage("Teaching the AI to read cursive..."), 2400));
-    timeoutIds.current.push(setTimeout(() => setLoadingMessage("Cross-referencing the medical dictionary..."), 3600));
-    timeoutIds.current.push(setTimeout(() => setLoadingMessage("Checking side effects and interactions..."), 4800));
-    timeoutIds.current.push(setTimeout(() => setLoadingMessage("Finalizing clinical data..."), 6000));
-
-    try {
-      const formData = new FormData();
-      const localUri = asset.uri;
-      const filename = asset.fileName || localUri.split('/').pop() || 'prescription.jpg';
-      const type = asset.mimeType || 'image/jpeg';
-
-      let cleanUri = localUri;
-      if (Platform.OS === 'ios') {
-        cleanUri = localUri.startsWith('file://') ? localUri : `file://${localUri}`;
-      }
-
-      formData.append('file', {
-        uri: cleanUri,
-        name: filename,
-        type: type,
-      } as any);
-
-      const userStr = await SecureStore.getItemAsync('pulse_user');
-      if (userStr) {
-        formData.append('userId', JSON.parse(userStr).id);
-      }
-
-      const res = await prescriptionAPI.upload(formData);
-      setLatestAnalysis(res);
-      await fetchHistory();
-      Alert.alert('Success', 'Prescription analyzed successfully!');
-    } catch (err) {
-      console.error("Upload failed", err);
-      Alert.alert('Upload Failed', 'Failed to analyze the prescription. Please try again.');
+      Alert.alert('Error', 'Failed to upload document. Please try again.');
     } finally {
       setUploading(false);
-      timeoutIds.current.forEach(clearTimeout);
-      timeoutIds.current = [];
     }
   };
 
-  if (uploading) {
-    return (
-      <SafeAreaView className="flex-1 items-center justify-center space-y-4 bg-slate-50 dark:bg-slate-950">
-        <ActivityIndicator size="large" color="#007bff" />
-        <Text className="text-gray-500 font-semibold text-center px-6 mt-4">
-          {loadingMessage}
-        </Text>
-      </SafeAreaView>
-    );
-  }
+ const handleSelectPrescription = (pres: Prescription) => {
+ setActivePrescription(pres);
+ const text = pres.ocrResult?.rawText || '';
+ setRawText(text);
 
-  return (
-    <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-950">
-      
-      {/* Header */}
-      <View className="px-5 pt-4 pb-3 bg-white dark:bg-slate-900 border-b border-border z-20">
-        <View className="flex-row items-center gap-2 mb-2">
-          <View className="h-8 w-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 items-center justify-center border border-emerald-200 dark:border-emerald-800">
-            <FileText size={16} color="#10b981" />
-          </View>
-          <Text className="text-2xl font-black text-slate-800 dark:text-slate-100 tracking-tight">Prescriptions</Text>
-        </View>
-        <Text className="text-xs text-slate-500 dark:text-slate-400 font-semibold mb-2">
-          Upload handwritten prescriptions. Our AI will digitize them instantly.
-        </Text>
-      </View>
+ if (pres.prescriptionAnalysis && pres.prescriptionAnalysis.length > 0) {
+ setMedicineFields(pres.prescriptionAnalysis.map(med => ({
+ name: med.medicineName,
+ dosage: med.dosage,
+ instructions: med.instructions
+ })));
+ setView('detail');
+ } else {
+ setMedicineFields([{ name: '', dosage: '', instructions: '' }]); // basic parser fallback
+ setView('verify');
+ }
+ };
 
-      <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
-        
-        {/* Upload Card */}
-        <View className="p-5">
-          <TouchableOpacity 
-            onPress={handleImagePick}
-            disabled={uploading}
-            className="w-full bg-white dark:bg-slate-900 border-2 border-dashed border-emerald-200 dark:border-emerald-800 rounded-3xl p-8 items-center justify-center shadow-sm"
-          >
-                <View className="h-16 w-16 bg-emerald-50 dark:bg-emerald-900/20 rounded-full items-center justify-center mb-4 border border-emerald-100 dark:border-emerald-800/50">
-                  <UploadCloud size={32} color="#10b981" strokeWidth={1.5} />
-                </View>
-                <Text className="text-sm font-black text-slate-800 dark:text-slate-100 tracking-wide mb-2">
-                  Tap to Choose Image
-                </Text>
-                <Text className="text-[10px] text-slate-500 font-bold text-center">
-                  Select a photo of your prescription
-                </Text>
-                <View className="mt-5 bg-emerald-600 px-6 py-2.5 rounded-full shadow-sm">
-                  <Text className="text-white text-xs font-black tracking-wide">CHOOSE FILE</Text>
-                </View>
-          </TouchableOpacity>
-        </View>
+ const handleDelete = async (id: string) => {
+ Alert.alert('Delete', 'Are you sure?', [
+ { text: 'Cancel', style: 'cancel' },
+ { text: 'Delete', style: 'destructive', onPress: async () => {
+ try {
+ await prescriptionAPI.delete(id);
+ setPrescriptions(prev => prev.filter(p => p.id !== id));
+ if (activePrescription?.id === id) setView('list');
+ } catch (err) {}
+ }}
+ ]);
+ };
 
-        {/* Latest Analysis Results */}
-        {latestAnalysis && latestAnalysis.prescriptionAnalysis && latestAnalysis.prescriptionAnalysis.length > 0 && (
-          <View className="px-5 pb-5">
-            <Text className="text-sm font-black text-slate-800 dark:text-slate-100 mb-3">Extracted Medicines</Text>
-            {latestAnalysis.prescriptionAnalysis.map((med: any, idx: number) => (
-              <View key={idx} className="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-2xl mb-3 border border-emerald-100 dark:border-emerald-800/50">
-                <Text className="text-lg font-black text-emerald-700 dark:text-emerald-400 mb-1">{med.medicineName}</Text>
-                <View className="flex-row gap-4 mb-2">
-                  <View>
-                    <Text className="text-[10px] text-slate-500 font-bold uppercase">Dosage</Text>
-                    <Text className="text-xs font-semibold text-slate-700 dark:text-slate-300">{med.dosage}</Text>
-                  </View>
-                </View>
-                <Text className="text-[10px] text-slate-500 font-bold uppercase mt-1">Instructions</Text>
-                <Text className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-2">{med.instructions}</Text>
+ const handleVerifySubmit = async () => {
+ if (!activePrescription) return;
+ setVerifying(true);
+ try {
+ const payload = { rawText, medicines: medicineFields };
+ const res = await prescriptionAPI.verify(activePrescription.id, payload);
+ setPrescriptions(prev => prev.map(p => p.id === res.id ? res : p));
+ setActivePrescription(res);
+ setView('detail');
+ } catch (err: any) {
+ Alert.alert('Error', err.response?.data?.message || 'Verification failed.');
+ } finally {
+ setVerifying(false);
+ }
+ };
 
-                {med.simplifiedExplanation ? (
-                  <View className="mt-2 pt-2 border-t border-emerald-200/50 dark:border-emerald-800/50">
-                    <Text className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase mb-0.5">What it's for</Text>
-                    <Text className="text-xs font-semibold text-slate-700 dark:text-slate-300">{med.simplifiedExplanation}</Text>
-                  </View>
-                ) : null}
-              </View>
-            ))}
-          </View>
-        )}
+ const handleCheckInteractions = async () => {
+ setCheckingInteractions(true);
+ try {
+ const res = await prescriptionAPI.checkInteractions();
+ setInteractionResult({ interactions: res.interactions, severity: res.severity, checked: res.medicinesChecked });
+ } catch (err) {
+ Alert.alert('Error', 'Failed to check interactions.');
+ } finally {
+ setCheckingInteractions(false);
+ }
+ };
 
-        {/* History Log */}
-        <View className="px-5 pb-5">
-          <View className="flex-row items-center justify-between mb-4 mt-2">
-            <Text className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-              Scanned Document History
-            </Text>
-            <TouchableOpacity>
-              <Text className="text-[10px] font-bold text-primary">View All</Text>
-            </TouchableOpacity>
-          </View>
+ if (view === 'verify' && activePrescription) {
+ return (
+ <SafeAreaView className="flex-1 bg-background">
+ <View className="px-5 py-4 border-b border-border bg-white dark:bg-slate-900 flex-row items-center justify-between ">
+ <TouchableOpacity onPress={() => setView('list')}>
+ <Text className="text-primary font-bold text-xs">← Back</Text>
+ </TouchableOpacity>
+ <Text className="text-sm font-extrabold text-foreground">Verify Prescription</Text>
+ <View className="w-10" />
+ </View>
+ <ScrollView contentContainerStyle={{ padding: 20 }} className="flex-1">
+ <View className="bg-white dark:bg-slate-900 p-4 border border-border rounded-2xl mb-6 ">
+ <Text className="text-[10px] font-bold text-muted-foreground uppercase mb-2">Raw OCR Text</Text>
+ <TextInput
+ value={rawText}
+ onChangeText={setRawText}
+ multiline
+ className="bg-slate-50 dark:bg-slate-800 p-3 rounded-xl text-xs font-mono text-foreground h-32"
+ textAlignVertical="top"
+ />
+ </View>
 
-          {loading ? (
-            <ActivityIndicator size="large" color="#10b981" className="my-10" />
-          ) : history.length === 0 ? (
-            <View className="bg-white dark:bg-slate-900 rounded-2xl border border-border p-8 items-center justify-center shadow-sm">
-              <FileSearch size={32} color="#cbd5e1" className="mb-3" />
-              <Text className="text-xs font-bold text-slate-500 text-center">
-                No prescriptions digitized yet.
-              </Text>
-            </View>
-          ) : (
-            <View className="gap-3">
-              {history.map((item) => (
-                <View key={item.id} className="bg-white dark:bg-slate-900 rounded-2xl border border-border overflow-hidden shadow-sm">
-                  <View className="flex-row items-center p-4">
-                    {/* Thumbnail Mock */}
-                    <View className="h-12 w-10 bg-slate-100 dark:bg-slate-800 rounded border border-border items-center justify-center mr-4">
-                      <FileText size={16} color="#94a3b8" />
-                    </View>
-                    
-                    {/* Info */}
-                    <View className="flex-1">
-                      <View className="flex-row justify-between items-start mb-1">
-                        <Text className="font-bold text-slate-800 dark:text-slate-100 text-sm flex-1 mr-2" numberOfLines={1}>
-                          {item.fileUrl?.split('/').pop() || 'Prescription_Doc'}
-                        </Text>
-                        <View className="bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800/50">
-                          <Text className="text-[8px] font-black tracking-wider text-emerald-600 dark:text-emerald-400">PROCESSED</Text>
-                        </View>
-                      </View>
-                      
-                      <View className="flex-row items-center gap-2">
-                        <Clock size={10} color="#94a3b8" />
-                        <Text className="text-[10px] font-semibold text-slate-500">
-                          {new Date(item.createdAt).toLocaleDateString()}
-                        </Text>
-                        <Text className="text-slate-300">•</Text>
-                        <Text className="text-[10px] font-semibold text-slate-500">
-                          {item.prescriptionAnalysis?.length || 0} meds found
-                        </Text>
-                      </View>
-                    </View>
-                    
-                    <ChevronRight size={16} color="#cbd5e1" className="ml-2" />
-                  </View>
-                  
-                  {/* Results preview snippet */}
-                  <View className="bg-slate-50 dark:bg-slate-950 px-4 py-2 border-t border-border flex-row items-center">
-                    <CheckCircle2 size={12} color="#10b981" />
-                    <Text className="text-[9px] font-bold text-slate-600 dark:text-slate-400 ml-1.5">
-                      Digitized successfully using Pulse AI Engine
-                    </Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          )}
-        </View>
+ <View className="flex-row justify-between items-center mb-3">
+ <Text className="text-sm font-bold text-foreground">Medicines Extracted</Text>
+ <TouchableOpacity onPress={() => setMedicineFields(prev => [...prev, { name: '', dosage: '', instructions: '' }])}>
+ <Text className="text-primary text-xs font-bold">+ Add Row</Text>
+ </TouchableOpacity>
+ </View>
 
-      </ScrollView>
-    </SafeAreaView>
-  );
+ {medicineFields.map((field, idx) => (
+ <View key={idx} className="bg-white dark:bg-slate-900 p-4 border border-border rounded-2xl mb-4 relative">
+ <TouchableOpacity onPress={() => setMedicineFields(prev => prev.filter((_, i) => i !== idx))} className="absolute top-3 right-3 p-1">
+ <Trash2 size={16} color="#ef4444" />
+ </TouchableOpacity>
+ 
+ <Text className="text-[10px] text-muted-foreground uppercase font-bold mb-1">Medicine Name</Text>
+ <TextInput value={field.name} onChangeText={(val) => { const copy = [...medicineFields]; copy[idx].name = val; setMedicineFields(copy); }} className="border border-border rounded-xl px-3 py-2 text-xs text-foreground mb-3" />
+ 
+ <View className="flex-row gap-3">
+ <View className="flex-1">
+ <Text className="text-[10px] text-muted-foreground uppercase font-bold mb-1">Dosage</Text>
+ <TextInput value={field.dosage} onChangeText={(val) => { const copy = [...medicineFields]; copy[idx].dosage = val; setMedicineFields(copy); }} className="border border-border rounded-xl px-3 py-2 text-xs text-foreground" />
+ </View>
+ <View className="flex-1">
+ <Text className="text-[10px] text-muted-foreground uppercase font-bold mb-1">Frequency</Text>
+ <TextInput value={field.instructions} onChangeText={(val) => { const copy = [...medicineFields]; copy[idx].instructions = val; setMedicineFields(copy); }} className="border border-border rounded-xl px-3 py-2 text-xs text-foreground" />
+ </View>
+ </View>
+ </View>
+ ))}
+
+ <TouchableOpacity onPress={handleVerifySubmit} disabled={verifying} className="bg-primary rounded-xl py-3 items-center flex-row justify-center gap-2 mt-4 ">
+ {verifying ? <ActivityIndicator color="#fff" size="small" /> : <Sparkles size={16} color="#fff" />}
+ <Text className="text-white font-bold">{verifying ? 'Analyzing...' : 'Analyze with Pulse AI'}</Text>
+ </TouchableOpacity>
+ </ScrollView>
+ </SafeAreaView>
+ );
+ }
+
+ if (view === 'detail' && activePrescription) {
+ return (
+ <SafeAreaView className="flex-1 bg-background">
+ <View className="px-5 py-4 border-b border-border bg-white dark:bg-slate-900 flex-row items-center justify-between ">
+ <TouchableOpacity onPress={() => setView('list')}>
+ <Text className="text-primary font-bold text-xs">← Back to List</Text>
+ </TouchableOpacity>
+ <Text className="text-sm font-extrabold text-foreground">Analysis Results</Text>
+ <TouchableOpacity onPress={() => setView('verify')}>
+ <Text className="text-primary font-bold text-xs">Edit</Text>
+ </TouchableOpacity>
+ </View>
+ <ScrollView contentContainerStyle={{ padding: 20 }} className="flex-1">
+ {activePrescription.prescriptionAnalysis.length === 0 ? (
+ <View className="p-8 text-center bg-white dark:bg-slate-900 border border-border rounded-2xl items-center">
+ <Text className="text-sm font-bold mt-2">No Medicines Extracted</Text>
+ <Text className="text-xs text-muted-foreground text-center mt-2">Tap Edit to manually add them.</Text>
+ </View>
+ ) : (
+ <View className="space-y-4">
+ {activePrescription.prescriptionAnalysis.map((med, index) => (
+ <View key={index} className="bg-white dark:bg-slate-900 border border-border rounded-2xl p-5 ">
+ <View className="flex-row justify-between items-start mb-2">
+ <Text className="font-extrabold text-sm text-foreground flex-1">{med.medicineName}</Text>
+ <View className="bg-primary/10 px-2 py-1 rounded">
+ <Text className="text-[10px] text-primary font-bold">{med.dosage}</Text>
+ </View>
+ </View>
+ 
+ <Text className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mt-2">Instructions</Text>
+ <Text className="text-xs text-foreground mt-0.5">{med.instructions}</Text>
+ 
+ <Text className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mt-3">Simplified AI Definition</Text>
+ <Text className="text-[11px] text-foreground font-light mt-0.5">{med.simplifiedExplanation}</Text>
+
+ <View className="mt-4 space-y-2">
+ <View className="bg-warning/10 border border-warning/20 p-2 rounded-lg">
+ <Text className="text-[10px] text-warning font-bold mb-0.5">⚠️ Side Effects</Text>
+ <Text className="text-[10px] text-warning/90">{med.sideEffects}</Text>
+ </View>
+ <View className="bg-danger/10 border border-danger/20 p-2 rounded-lg">
+ <Text className="text-[10px] text-danger font-bold mb-0.5">🚫 Interactions</Text>
+ <Text className="text-[10px] text-danger/90">{med.drugInteractions}</Text>
+ </View>
+ </View>
+ </View>
+ ))}
+ </View>
+ )}
+ </ScrollView>
+ </SafeAreaView>
+ );
+ }
+
+ // DEFAULT LIST VIEW
+ return (
+ <SafeAreaView className="flex-1 bg-background">
+ <ScrollView contentContainerStyle={{ padding: 20 }} className="flex-1">
+ 
+ <View className="mb-6">
+ <View className="flex-row items-center gap-2 mb-1">
+ <ClipboardList size={24} color="#2563EB" />
+ <Text className="text-2xl font-extrabold text-foreground">Prescriptions</Text>
+ </View>
+ <Text className="text-xs text-muted-foreground">Scan, decode, and check drug interactions.</Text>
+ </View>
+
+ {/* Upload Button */}
+ <TouchableOpacity 
+ onPress={handleImagePick}
+ disabled={uploading}
+ className="border-2 border-dashed border-primary/30 bg-primary/5 rounded-2xl p-6 items-center justify-center mb-6"
+ >
+ {uploading ? (
+ <ActivityIndicator size="large" color="#2563EB" />
+ ) : (
+ <>
+ <UploadCloud size={32} color="#2563EB" className="mb-2" />
+ <Text className="text-xs font-bold text-primary">Scan New Prescription</Text>
+ <Text className="text-[10px] text-muted-foreground mt-1">Images accepted</Text>
+ </>
+ )}
+ </TouchableOpacity>
+
+ {/* Interaction Checker */}
+ <View className="bg-white dark:bg-slate-900 border border-border rounded-2xl p-5 mb-6 ">
+ <View className="flex-row items-center gap-2 mb-2">
+ <Activity size={16} color="#2563EB" />
+ <Text className="text-sm font-bold text-foreground">Global Interaction Check</Text>
+ </View>
+ <Text className="text-[10px] text-muted-foreground mb-4">Cross-reference all active meds across all scans.</Text>
+ 
+ {interactionResult ? (
+ <View className={`p-4 rounded-xl border ${interactionResult.severity === 'HIGH' ? 'bg-danger/10 border-danger/20' : interactionResult.severity === 'MODERATE' ? 'bg-warning/10 border-warning/20' : 'bg-success/10 border-success/20'}`}>
+ <Text className="text-xs font-bold mb-1">Severity: {interactionResult.severity}</Text>
+ <Text className="text-[10px] leading-relaxed mb-2">{interactionResult.interactions}</Text>
+ <TouchableOpacity onPress={() => setInteractionResult(null)}>
+ <Text className="text-[10px] underline">Reset</Text>
+ </TouchableOpacity>
+ </View>
+ ) : (
+ <TouchableOpacity onPress={handleCheckInteractions} disabled={checkingInteractions || prescriptions.length === 0} className="bg-slate-900 dark:bg-white rounded-xl py-3 items-center flex-row justify-center gap-2">
+ {checkingInteractions ? <ActivityIndicator size="small" color="#fff" /> : <ShieldCheck size={14} color="#fff" />}
+ <Text className="text-white dark:text-slate-900 text-xs font-bold">{checkingInteractions ? 'Checking...' : 'Run Safety Scan'}</Text>
+ </TouchableOpacity>
+ )}
+ </View>
+
+ <Text className="text-sm font-bold text-foreground mb-3">Scanned History</Text>
+ {loading ? (
+ <ActivityIndicator size="large" color="#2563EB" />
+ ) : prescriptions.length === 0 ? (
+ <View className="bg-white dark:bg-slate-900 border border-border rounded-2xl p-6 items-center">
+ <Text className="text-xs text-muted-foreground">No prescriptions scanned yet.</Text>
+ </View>
+ ) : (
+ <View className="space-y-3">
+ {prescriptions.map(pres => (
+ <TouchableOpacity key={pres.id} onPress={() => handleSelectPrescription(pres)} className="bg-white dark:bg-slate-900 border border-border rounded-2xl p-4 flex-row justify-between items-center ">
+ <View className="flex-row items-center gap-3 flex-1">
+ <View className="bg-primary/10 w-10 h-10 rounded-xl items-center justify-center">
+ <FileText size={16} color="#2563EB" />
+ </View>
+ <View className="flex-1 pr-2">
+ <Text className="font-bold text-xs text-foreground" numberOfLines={1}>
+ {pres.prescriptionAnalysis && pres.prescriptionAnalysis.length > 0 
+ ? pres.prescriptionAnalysis.map(m => m.medicineName).join(', ')
+ : `Scan #${pres.id.slice(0, 8)}`}
+ </Text>
+ <Text className="text-[10px] text-muted-foreground mt-0.5">{new Date(pres.createdAt).toLocaleDateString()}</Text>
+ </View>
+ </View>
+ <TouchableOpacity onPress={() => handleDelete(pres.id)} className="p-2">
+ <Trash2 size={16} color="#ef4444" />
+ </TouchableOpacity>
+ </TouchableOpacity>
+ ))}
+ </View>
+ )}
+ </ScrollView>
+ </SafeAreaView>
+ );
 };
 
 export default PrescriptionCenterScreen;

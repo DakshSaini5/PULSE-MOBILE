@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { SafeScreen as SafeAreaView } from '../components/SafeScreen';
+import { View, Text, TextInput, TouchableOpacity, SafeAreaView, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { ShieldAlert, Mail, KeyRound, Lock, CheckCircle2, ArrowLeft, LogIn, MessageSquare } from 'lucide-react-native';
 import { PulseLogo } from '../components/PulseLogo';
@@ -84,7 +83,7 @@ export const ForgotScreen = () => {
  };
 
  return (
- <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-background">
+ <SafeAreaView className="flex-1 bg-background">
  <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
  <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 20 }}>
  <View className="bg-white dark:bg-slate-900 border border-border rounded-2xl p-6 relative overflow-hidden">
@@ -197,6 +196,3 @@ export const ForgotScreen = () => {
 };
 
 export default ForgotScreen;
-
-
-

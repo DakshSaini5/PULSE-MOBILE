@@ -1,22 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StatusBar, Alert } from 'react-native';
-import { SafeScreen as SafeAreaView } from '../components/SafeScreen';
+import { View, Text, TextInput, TouchableOpacity, SafeAreaView, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StatusBar } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { UserPlus, Mail, Lock, User, ShieldAlert, Eye, EyeOff, ChevronLeft } from 'lucide-react-native';
 import { PulseLogo } from '../components/PulseLogo';
 import { authAPI } from '../services/api';
-import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
-import * as AuthSession from 'expo-auth-session';
-import * as Linking from 'expo-linking';
-import axios from 'axios';
-import * as SecureStore from 'expo-secure-store';
-
-WebBrowser.maybeCompleteAuthSession();
 
 export const RegisterScreen = () => {
- const { register, setGoogleUser } = useAuth();
+ const { register, googleLogin } = useAuth();
  const navigation = useNavigation<any>();
  const [name, setName] = useState('');
  const [email, setEmail] = useState('');
@@ -30,15 +21,6 @@ export const RegisterScreen = () => {
  const [code, setCode] = useState('');
  const [resendCooldown, setResendCooldown] = useState(0);
 
- const [request, response, promptAsync] = Google.useAuthRequest({
-    clientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-    responseType: 'id_token',
-    redirectUri: process.env.EXPO_PUBLIC_OAUTH_REDIRECT,
-    extraParams: {
-      state: AuthSession.makeRedirectUri() + '--/googleauth'
-    }
-  });
-
  useEffect(() => {
  let timer: any;
  if (resendCooldown > 0) {
@@ -49,77 +31,17 @@ export const RegisterScreen = () => {
  };
  }, [resendCooldown]);
 
- useEffect(() => {
-    // Catch deep links if openAuthSessionAsync fails to intercept them
-    const subscription = Linking.addEventListener('url', ({ url }) => {
-      console.log("MANUAL LISTENER CAUGHT URL:", url);
-      if (url.includes('id_token=')) {
-        processGoogleDeepLink(url);
-      }
-    });
-    return () => subscription.remove();
-  }, []);
-
-  const handleGoogleCallback = async (idToken: string) => {
-    setGoogleLoading(true);
-    setError(null);
-    try {
-      // Use the custom api instance from services/api to ensure the URL is correct
-      const { api } = require('../services/api');
-      const res = await api.post('/api/auth/google', { token: idToken });
-      
-      if (res.data.token) {
-        await SecureStore.setItemAsync('pulse_token', res.data.token);
-        if (res.data.user) {
-          await SecureStore.setItemAsync('pulse_user', JSON.stringify(res.data.user));
-          setGoogleUser(res.data.user);
-        }
-      } else {
-        throw new Error(res.data.message || 'No token returned from server');
-      }
-    } catch (err: any) {
-      Alert.alert("Google Login Failed", err?.message || "Could not complete Google Sign-In.");
-      console.log("GOOGLE LOGIN ERROR:", err);
-      setError(err?.message || 'Google Sign-In failed.');
-    } finally {
-      setGoogleLoading(false);
-    }
-  };
-
-  const processGoogleDeepLink = (url: string) => {
-    const idTokenMatch = url.match(/id_token=([^&]+)/);
-    if (idTokenMatch && idTokenMatch[1]) {
-      WebBrowser.dismissBrowser();
-      handleGoogleCallback(idTokenMatch[1]);
-    } else {
-      Alert.alert("Deep Link Error", "Woke up but no id_token found: " + url);
-    }
-  };
-
-  const handleGoogleLogin = async () => {
-    if (!request || !request.url) {
-      Alert.alert("Error", "Google Auth is not ready yet.");
-      return;
-    }
-    try {
-      const returnUrl = AuthSession.makeRedirectUri();
-      // Inject the returnUrl into the state parameter by piping it |
-      const modifiedUrl = request.url.replace(/(state=[^&]+)/, `$1|${encodeURIComponent(returnUrl)}`);
-      
-      const result = await WebBrowser.openAuthSessionAsync(modifiedUrl, returnUrl);
-      
-      // Alert.alert("Debug WebBrowser Result", JSON.stringify(result)); // Optional debug
-      
-      if (result.type === 'success' && result.url) {
-        processGoogleDeepLink(result.url);
-      } else if (result.type !== 'cancel') {
-        // Just log, don't alert unless error
-        console.log("WebBrowser result:", result);
-      }
-    } catch (err: any) {
-      Alert.alert("Error", "Failed to open Google Login: " + err?.message);
-    }
-  };
+ const handleGoogleLogin = async () => {
+ setGoogleLoading(true);
+ setError(null);
+ try {
+ await googleLogin();
+ } catch (err: any) {
+ setError(err.message || 'Google Sign-In failed.');
+ } finally {
+ setGoogleLoading(false);
+ }
+ };
 
  const handleRequestOTP = async () => {
  if (!name || !email || !mobileNumber || !password) {
@@ -185,7 +107,7 @@ export const RegisterScreen = () => {
  };
 
  return (
- <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-background">
+ <SafeAreaView className="flex-1 bg-background">
  <StatusBar barStyle="default" />
  <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
  <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 20 }}>
@@ -322,6 +244,3 @@ export const RegisterScreen = () => {
 };
 
 export default RegisterScreen;
-
-
-

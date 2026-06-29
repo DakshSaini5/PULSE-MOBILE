@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, TextInput, Linking, Alert } from 'react-native';
-import { SafeScreen as SafeAreaView } from '../components/SafeScreen';
+import { View, Text, ScrollView, SafeAreaView, ActivityIndicator, TouchableOpacity, TextInput, Linking } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { hospitalAPI, Hospital } from '../services/api';
 import { ArrowLeft, MapPin, Phone, Globe, Clock, Star, Activity, AlertCircle, Heart, User } from 'lucide-react-native';
@@ -32,8 +31,8 @@ export const HospitalDetailScreen = () => {
  hospitalAPI.getReviews(id)
  ]);
  setHospital(hospitalData);
- setReviews(reviewsData?.reviews || []);
- setTotalReviews(reviewsData?.pagination?.total || 0);
+ setReviews(reviewsData.reviews);
+ setTotalReviews(reviewsData.pagination.total);
  } catch (err) {
  console.error(err);
  } finally {
@@ -45,40 +44,29 @@ export const HospitalDetailScreen = () => {
  fetchDetails();
  }, [id, lat, lng]);
 
-  const handleAddReview = async () => {
-    if (!id) return;
-    if (!user) {
-      Alert.alert('Authentication Required', 'Please log in to submit a review.');
-      return;
-    }
-    if (!reviewText.trim()) {
-      Alert.alert('Invalid Review', 'Review text cannot be empty.');
-      return;
-    }
-    if (reviewText.trim().length < 10) {
-      Alert.alert('Invalid Review', 'Your review must be at least 10 characters long.');
-      return;
-    }
-    
-    setSubmittingReview(true);
-    try {
-      const newRev = await hospitalAPI.postReview(id, reviewRating, reviewText);
-      setReviews(prev => [newRev, ...prev]);
-      setTotalReviews(prev => prev + 1);
-      setReviewText('');
-      setReviewRating(5);
-      fetchDetails();
-    } catch (err: any) {
-      console.error(err);
-      Alert.alert('Error', err.response?.data?.message || 'Could not submit review. Please try again.');
-    } finally {
-      setSubmittingReview(false);
-    }
-  };
+ const handleAddReview = async () => {
+ if (!reviewText.trim() || !id) return;
+ if (!user) return; // Alert handled contextually
+ if (reviewText.trim().length < 10) return;
+ 
+ setSubmittingReview(true);
+ try {
+ const newRev = await hospitalAPI.postReview(id, reviewRating, reviewText);
+ setReviews(prev => [newRev, ...prev]);
+ setTotalReviews(prev => prev + 1);
+ setReviewText('');
+ setReviewRating(5);
+ fetchDetails();
+ } catch (err: any) {
+ console.error(err);
+ } finally {
+ setSubmittingReview(false);
+ }
+ };
 
  if (loading) {
  return (
- <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-background justify-center items-center">
+ <SafeAreaView className="flex-1 bg-background justify-center items-center">
  <ActivityIndicator size="large" color="#1E60D5" />
  </SafeAreaView>
  );
@@ -86,7 +74,7 @@ export const HospitalDetailScreen = () => {
 
  if (!hospital) {
  return (
- <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-background justify-center items-center px-6">
+ <SafeAreaView className="flex-1 bg-background justify-center items-center px-6">
  <AlertCircle size={48} color="#ef4444" className="mb-4" />
  <Text className="text-lg font-bold text-foreground text-center">Hospital Not Found</Text>
  <Text className="text-xs text-muted-foreground text-center mt-2">The hospital record does not exist or has been removed.</Text>
@@ -98,15 +86,11 @@ export const HospitalDetailScreen = () => {
  }
 
  return (
- <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-background">
+ <SafeAreaView className="flex-1 bg-background">
  <ScrollView contentContainerStyle={{ paddingBottom: 40 }} className="flex-1">
  
  <View className="px-5 pt-4 pb-2">
- <TouchableOpacity 
-    onPress={() => navigation.goBack()} 
-    className="flex-row items-center gap-1 mb-4"
-    hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
-  >
+ <TouchableOpacity onPress={() => navigation.goBack()} className="flex-row items-center gap-1 mb-4">
  <ArrowLeft size={16} color="#64748b" />
  <Text className="text-muted-foreground text-xs font-semibold">Back</Text>
  </TouchableOpacity>
@@ -146,25 +130,21 @@ export const HospitalDetailScreen = () => {
  </View>
  </View>
 
-  <View className="flex-row items-start gap-3">
-  <Phone size={16} color="#1E60D5" className="mt-0.5" />
-  <View className="flex-1">
-  <Text className="text-[10px] text-muted-foreground font-bold uppercase">Helpline</Text>
-  {hospital.phone ? (
-  <TouchableOpacity onPress={() => Linking.openURL(getDialerHref(hospital.phone, hospital.address))}>
-  <Text className="text-xs text-primary font-bold mt-0.5">
-  {formatIndianPhoneNumber(hospital.phone, hospital.address)}
-  </Text>
-  </TouchableOpacity>
-  ) : (
-  <TouchableOpacity onPress={() => Linking.openURL(`https://www.google.com/search?q=phone+number+for+${encodeURIComponent(hospital.name || '')}+${encodeURIComponent(hospital.address || '')}`)}>
-  <Text className="text-xs text-primary font-semibold mt-0.5">
-  Search Helpline on Google
-  </Text>
-  </TouchableOpacity>
-  )}
-  </View>
-  </View>
+ <View className="flex-row items-start gap-3">
+ <Phone size={16} color="#1E60D5" className="mt-0.5" />
+ <View className="flex-1">
+ <Text className="text-[10px] text-muted-foreground font-bold uppercase">Helpline</Text>
+ {hospital.phone ? (
+ <TouchableOpacity onPress={() => Linking.openURL(getDialerHref(hospital.phone || ''))}>
+ <Text className="text-xs text-primary font-bold mt-0.5">
+ {formatIndianPhoneNumber(hospital.phone || '')}
+ </Text>
+ </TouchableOpacity>
+ ) : (
+ <Text className="text-xs text-muted-foreground font-medium mt-0.5">Not available</Text>
+ )}
+ </View>
+ </View>
  </View>
  </View>
 
@@ -172,30 +152,20 @@ export const HospitalDetailScreen = () => {
  <View className="px-5 mt-6">
  <Text className="text-sm font-bold text-foreground mb-3">Clinical Specialties</Text>
  <View className="space-y-3">
- {hospital.specialties?.map((spec: any, index: number) => (
+ {hospital.specialties?.map((spec, index) => (
  <View key={index} className="bg-slate-50 dark:bg-slate-800 border border-border rounded-2xl p-4">
  <Text className="text-xs font-bold text-primary">{spec.specialty.name}</Text>
  <Text className="text-[10px] text-muted-foreground mt-1">{spec.specialty.description}</Text>
-  <View className="mt-3 pt-3 border-t border-border flex-row justify-between items-center">
-  <Text className="text-[10px] text-muted-foreground font-semibold">Consulting Hours</Text>
-  {(!spec.opdTimings || spec.opdTimings.includes('09:00 AM - 05:00 PM') || spec.opdTimings.includes('09:00 AM - 09:00 PM')) ? (
-    <TouchableOpacity onPress={() => Linking.openURL(`https://www.google.com/search?q=${encodeURIComponent(`${hospital.name || ''} opd timings`)}`)}>
-      <Text className="text-[10px] text-primary font-extrabold underline">Contact Facility</Text>
-    </TouchableOpacity>
-  ) : (
-    <Text className="text-[10px] text-foreground font-bold">{spec.opdTimings}</Text>
-  )}
-  </View>
-  <View className="mt-1.5 flex-row justify-between items-center">
-  <Text className="text-[10px] text-muted-foreground font-semibold">Avg. Fee</Text>
-  {spec.averageCost > 0 ? (
-    <Text className="text-[10px] text-foreground font-bold">₹{spec.averageCost}</Text>
-  ) : (
-    <TouchableOpacity onPress={() => Linking.openURL(`https://www.google.com/search?q=${encodeURIComponent(`${hospital.name || ''} consultation fees`)}`)}>
-      <Text className="text-[10px] text-primary font-extrabold underline">Contact Hospital</Text>
-    </TouchableOpacity>
-  )}
-  </View>
+ <View className="mt-3 pt-3 border-t border-border flex-row justify-between items-center">
+ <Text className="text-[10px] text-muted-foreground font-semibold">Consulting Hours</Text>
+ <Text className="text-[10px] text-foreground font-bold">{spec.opdTimings}</Text>
+ </View>
+ <View className="mt-1.5 flex-row justify-between items-center">
+ <Text className="text-[10px] text-muted-foreground font-semibold">Avg. Fee</Text>
+ <Text className="text-[10px] text-foreground font-bold">
+ {spec.averageCost > 0 ? `₹${spec.averageCost}` : 'Contact Hospital'}
+ </Text>
+ </View>
  </View>
  ))}
  </View>
@@ -207,18 +177,13 @@ export const HospitalDetailScreen = () => {
  
  <View className="bg-slate-50 dark:bg-slate-800 border border-border rounded-2xl p-4 mb-4">
  <Text className="text-xs font-semibold text-foreground mb-2">Write a Review</Text>
-  <View className="flex-row gap-2 mb-3">
-  {[1, 2, 3, 4, 5].map(num => (
-  <TouchableOpacity 
-    key={num} 
-    onPress={() => setReviewRating(num)}
-    hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-    className="p-1"
-  >
-  <Star size={24} color={num <= reviewRating ? "#f59e0b" : "#94a3b8"} fill={num <= reviewRating ? "#f59e0b" : "transparent"} />
-  </TouchableOpacity>
-  ))}
-  </View>
+ <View className="flex-row gap-1 mb-3">
+ {[1, 2, 3, 4, 5].map(num => (
+ <TouchableOpacity key={num} onPress={() => setReviewRating(num)}>
+ <Star size={20} color={num <= reviewRating ? "#f59e0b" : "#94a3b8"} fill={num <= reviewRating ? "#f59e0b" : "transparent"} />
+ </TouchableOpacity>
+ ))}
+ </View>
  <TextInput
  value={reviewText}
  onChangeText={setReviewText}
@@ -262,6 +227,3 @@ export const HospitalDetailScreen = () => {
 };
 
 export default HospitalDetailScreen;
-
-
-

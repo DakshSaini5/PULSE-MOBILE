@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, TextInput, Alert, Modal } from 'react-native';
-import { SafeScreen as SafeAreaView } from '../components/SafeScreen';
+import { View, Text, ScrollView, SafeAreaView, ActivityIndicator, TouchableOpacity, TextInput, Alert, Modal } from 'react-native';
 import { userAPI, emergencyAPI, UserProfile, EmergencyContact } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { User, Activity, FileText, Calendar, Shield, Lock, Trash2, LogOut, Settings as SettingsIcon, Save } from 'lucide-react-native';
@@ -8,7 +7,7 @@ import { useNavigation } from '@react-navigation/native';
 import * as SecureStore from 'expo-secure-store';
 
 export const ProfileScreen = () => {
- const { user, logout, refreshUser } = useAuth();
+ const { user, logout } = useAuth();
  const navigation = useNavigation<any>();
 
  const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -22,13 +21,6 @@ export const ProfileScreen = () => {
 
  const [isEditing, setIsEditing] = useState(false);
  const [editName, setEditName] = useState('');
- const [editAge, setEditAge] = useState('');
- const [editGender, setEditGender] = useState('Male');
- const [editWeight, setEditWeight] = useState('');
- const [editBloodGroup, setEditBloodGroup] = useState('O+');
- const [editMedicalConditions, setEditMedicalConditions] = useState('');
- const [saving, setSaving] = useState(false);
- const [addingContact, setAddingContact] = useState(false);
 
  useEffect(() => {
  const fetchData = async () => {
@@ -40,11 +32,6 @@ export const ProfileScreen = () => {
  ]);
  setProfile(profileData);
  setEditName(profileData.name);
- setEditAge(profileData.age ? profileData.age.toString() : '');
- setEditGender(profileData.gender || 'Male');
- setEditWeight(profileData.weight || '');
- setEditBloodGroup(profileData.bloodGroup || 'O+');
- setEditMedicalConditions(profileData.medicalConditions || '');
  setContacts(contactsData);
  } catch (err) {
  console.error(err);
@@ -57,30 +44,18 @@ export const ProfileScreen = () => {
 
  const handleUpdateProfile = async () => {
  if (!editName.trim()) return;
- setSaving(true);
  try {
- const updated = await userAPI.updateProfile({ 
-    name: editName,
-    age: editAge,
-    gender: editGender,
-    weight: editWeight,
-    bloodGroup: editBloodGroup,
-    medicalConditions: editMedicalConditions
- });
+ const updated = await userAPI.updateProfile({ name: editName });
  setProfile(prev => prev ? { ...prev, ...updated } : null);
- await refreshUser();
  setIsEditing(false);
  Alert.alert('Success', 'Profile updated successfully.');
  } catch (err) {
  Alert.alert('Error', 'Failed to update profile.');
- } finally {
- setSaving(false);
  }
  };
 
  const handleAddContact = async () => {
  if (!newContactName || !newContactPhone) return;
- setAddingContact(true);
  try {
  const res = await emergencyAPI.addContact({
  name: newContactName,
@@ -93,8 +68,6 @@ export const ProfileScreen = () => {
  setNewContactPhone('');
  } catch (err) {
  Alert.alert('Error', 'Failed to add emergency contact.');
- } finally {
- setAddingContact(false);
  }
  };
 
@@ -118,7 +91,7 @@ export const ProfileScreen = () => {
  await userAPI.deleteAccount();
  logout();
  } catch (err) {
- Alert.alert('Error', 'Failed to delete account. Please try again.');
+ Alert.alert('Error', 'Failed to delete account.');
  }
  }}
  ]);
@@ -126,14 +99,14 @@ export const ProfileScreen = () => {
 
  if (loading || !profile) {
  return (
- <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-background justify-center items-center">
+ <SafeAreaView className="flex-1 bg-background justify-center items-center">
  <ActivityIndicator size="large" color="#1E60D5" />
  </SafeAreaView>
  );
  }
 
  return (
- <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-background">
+ <SafeAreaView className="flex-1 bg-background">
  <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
  
  <View className="flex-row justify-between items-center mb-6">
@@ -151,127 +124,34 @@ export const ProfileScreen = () => {
  <View className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full opacity-50 -mr-10 -mt-10" />
  
  {isEditing ? (
-  <View className="space-y-4">
-  <Text className="text-xs font-bold uppercase text-muted-foreground">Edit Name</Text>
-  <TextInput 
-  value={editName}
-  onChangeText={setEditName}
-  className="border border-border rounded-xl px-4 py-3 text-sm text-foreground bg-white dark:bg-slate-900"
-  />
-
-  <View className="flex-row gap-3">
-    <View className="flex-1">
-      <Text className="text-xs font-bold uppercase text-muted-foreground">Age</Text>
-      <TextInput 
-        value={editAge}
-        onChangeText={setEditAge}
-        keyboardType="numeric"
-        placeholder="e.g. 28"
-        placeholderTextColor="#94a3b8"
-        className="border border-border rounded-xl px-4 py-3 text-sm text-foreground mt-1.5 bg-white dark:bg-slate-900"
-      />
-    </View>
-    <View className="flex-1">
-      <Text className="text-xs font-bold uppercase text-muted-foreground">Weight</Text>
-      <TextInput 
-        value={editWeight}
-        onChangeText={setEditWeight}
-        placeholder="e.g. 72 kg"
-        placeholderTextColor="#94a3b8"
-        className="border border-border rounded-xl px-4 py-3 text-sm text-foreground mt-1.5 bg-white dark:bg-slate-900"
-      />
-    </View>
-  </View>
-
-  <Text className="text-xs font-bold uppercase text-muted-foreground mt-2">Gender</Text>
-  <View className="flex-row gap-2 mt-1">
-    {['Male', 'Female', 'Other'].map(g => (
-      <TouchableOpacity 
-        key={g} 
-        onPress={() => setEditGender(g)} 
-        className={`px-4 py-2 rounded-xl border ${editGender === g ? 'bg-primary/10 border-primary' : 'bg-transparent border-border'}`}
-      >
-        <Text className={`text-xs font-bold ${editGender === g ? 'text-primary' : 'text-muted-foreground'}`}>{g}</Text>
-      </TouchableOpacity>
-    ))}
-  </View>
-
-  <Text className="text-xs font-bold uppercase text-muted-foreground mt-2">Blood Group</Text>
-  <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row mt-1" contentContainerStyle={{ gap: 8 }}>
-    {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(bg => (
-      <TouchableOpacity 
-        key={bg} 
-        onPress={() => setEditBloodGroup(bg)} 
-        className={`px-3 py-2 rounded-xl border ${editBloodGroup === bg ? 'bg-primary/10 border-primary' : 'bg-transparent border-border'}`}
-      >
-        <Text className={`text-xs font-bold ${editBloodGroup === bg ? 'text-primary' : 'text-muted-foreground'}`}>{bg}</Text>
-      </TouchableOpacity>
-    ))}
-  </ScrollView>
-
-  <Text className="text-xs font-bold uppercase text-muted-foreground mt-2">Medical Conditions</Text>
-  <TextInput 
-    value={editMedicalConditions}
-    onChangeText={setEditMedicalConditions}
-    placeholder="e.g. Hypertension, Asthma"
-    placeholderTextColor="#94a3b8"
-    multiline
-    numberOfLines={3}
-    className="border border-border rounded-xl px-4 py-3 text-sm text-foreground mt-1 bg-white dark:bg-slate-900 min-h-[60px] text-left align-top"
-  />
-
-  <View className="flex-row gap-2 pt-2">
-  <TouchableOpacity onPress={() => setIsEditing(false)} className="flex-1 py-3.5 rounded-xl border border-border items-center">
-  <Text className="font-bold text-xs">Cancel</Text>
-  </TouchableOpacity>
-  <TouchableOpacity onPress={handleUpdateProfile} disabled={saving} className="flex-1 py-3.5 rounded-xl bg-primary items-center">
-  {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text className="font-bold text-white text-xs">Save</Text>}
-  </TouchableOpacity>
-  </View>
-  </View>
+ <View className="space-y-4">
+ <Text className="text-xs font-bold uppercase text-muted-foreground">Edit Name</Text>
+ <TextInput 
+ value={editName}
+ onChangeText={setEditName}
+ className="border border-border rounded-xl px-4 py-3 text-sm text-foreground"
+ />
+ <View className="flex-row gap-2">
+ <TouchableOpacity onPress={() => setIsEditing(false)} className="flex-1 py-3 rounded-xl border border-border items-center">
+ <Text className="font-bold text-xs">Cancel</Text>
+ </TouchableOpacity>
+ <TouchableOpacity onPress={handleUpdateProfile} className="flex-1 py-3 rounded-xl bg-primary items-center">
+ <Text className="font-bold text-white text-xs">Save</Text>
+ </TouchableOpacity>
+ </View>
+ </View>
  ) : (
-  <View className="items-center">
-  <View className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center border-4 border-white mb-3">
-  <Text className="text-3xl font-black text-primary">{profile.name.charAt(0).toUpperCase()}</Text>
-  </View>
-  <Text className="text-xl font-extrabold text-foreground">{profile.name}</Text>
-  <Text className="text-xs text-muted-foreground">{profile.email}</Text>
-
-  {/* Vitals / Profile Specs Grid */}
-  <View className="flex-row flex-wrap gap-2 justify-center mt-4 w-full">
-    <View className="bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-border items-center min-w-[70px]">
-      <Text className="text-[9px] font-bold text-muted-foreground uppercase">Age</Text>
-      <Text className="text-xs font-extrabold text-foreground mt-0.5">{profile.age || '—'}</Text>
-    </View>
-    <View className="bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-border items-center min-w-[70px]">
-      <Text className="text-[9px] font-bold text-muted-foreground uppercase">Gender</Text>
-      <Text className="text-xs font-extrabold text-foreground mt-0.5">{profile.gender || '—'}</Text>
-    </View>
-    <View className="bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-border items-center min-w-[70px]">
-      <Text className="text-[9px] font-bold text-muted-foreground uppercase">Weight</Text>
-      <Text className="text-xs font-extrabold text-foreground mt-0.5">{profile.weight || '—'}</Text>
-    </View>
-    <View className="bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-border items-center min-w-[70px]">
-      <Text className="text-[9px] font-bold text-muted-foreground uppercase">Blood</Text>
-      <Text className="text-xs font-extrabold text-danger mt-0.5">{profile.bloodGroup || '—'}</Text>
-    </View>
-  </View>
-  
-  {profile.medicalConditions ? (
-    <View className="mt-3 w-full bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-border">
-      <Text className="text-[9px] font-bold text-muted-foreground uppercase mb-0.5">Medical Conditions</Text>
-      <Text className="text-xs text-foreground font-medium leading-relaxed">{profile.medicalConditions}</Text>
-    </View>
-  ) : null}
-  
-  <TouchableOpacity 
-    onPress={() => setIsEditing(true)} 
-    className="mt-4 bg-slate-100 dark:bg-slate-800 px-4 py-2.5 rounded-full"
-    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-  >
-  <Text className="text-[10px] font-bold text-slate-700 dark:text-slate-300">Edit Profile</Text>
-  </TouchableOpacity>
-  </View>
+ <View className="items-center">
+ <View className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center border-4 border-white mb-3">
+ <Text className="text-3xl font-black text-primary">{profile.name.charAt(0).toUpperCase()}</Text>
+ </View>
+ <Text className="text-xl font-extrabold text-foreground">{profile.name}</Text>
+ <Text className="text-xs text-muted-foreground">{profile.email}</Text>
+ 
+ <TouchableOpacity onPress={() => setIsEditing(true)} className="mt-3 bg-slate-100 dark:bg-slate-800 px-4 py-1.5 rounded-full">
+ <Text className="text-[10px] font-bold text-slate-700 dark:text-slate-300">Edit Profile</Text>
+ </TouchableOpacity>
+ </View>
  )}
 
  <View className="flex-row gap-3 mt-6 pt-6 border-t border-border">
@@ -375,8 +255,8 @@ export const ProfileScreen = () => {
  <TouchableOpacity onPress={() => setShowEmergencyModal(false)} className="flex-1 py-3.5 border border-border rounded-xl items-center">
  <Text className="font-bold text-xs text-foreground">Cancel</Text>
  </TouchableOpacity>
- <TouchableOpacity onPress={handleAddContact} disabled={addingContact} className="flex-1 py-3.5 bg-danger rounded-xl items-center">
- {addingContact ? <ActivityIndicator color="#fff" size="small" /> : <Text className="font-bold text-xs text-white">Save Contact</Text>}
+ <TouchableOpacity onPress={handleAddContact} className="flex-1 py-3.5 bg-danger rounded-xl items-center">
+ <Text className="font-bold text-xs text-white">Save Contact</Text>
  </TouchableOpacity>
  </View>
  </View>
@@ -388,6 +268,3 @@ export const ProfileScreen = () => {
 };
 
 export default ProfileScreen;
-
-
-

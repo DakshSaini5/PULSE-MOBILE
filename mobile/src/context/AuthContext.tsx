@@ -1,10 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import * as SecureStore from 'expo-secure-store';
-// Native Google Sign-in requires custom dev client, bypassing for Expo Go MVP
-// import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { authAPI } from '../services/api';
-import { DeviceEventEmitter } from 'react-native';
-/*
+
 try {
  GoogleSignin.configure({
  webClientId: '367526945989-ebnif0f9q0s080kab2clgd42d10qqhok.apps.googleusercontent.com',
@@ -12,7 +10,6 @@ try {
 } catch (e) {
  console.log('GoogleSignin configure failed', e);
 }
-*/
 
 interface User {
  id: string;
@@ -21,11 +18,6 @@ interface User {
  name: string;
  role: string;
  authProvider?: string;
- age?: number;
- gender?: string;
- weight?: string;
- bloodGroup?: string;
- medicalConditions?: string;
 }
 
 interface AuthContextType {
@@ -33,7 +25,6 @@ interface AuthContextType {
  loading: boolean;
  login: (identifier: string, password: string) => Promise<void>;
  googleLogin: () => Promise<void>;
- setGoogleUser: (user: User) => void;
  register: (name: string, email: string, mobileNumber: string, password: string, code: string) => Promise<void>;
  logout: () => Promise<void>;
  refreshUser: () => Promise<void>;
@@ -42,70 +33,101 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+ const [user, setUser] = useState<User | null>(null);
+ const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const storedUser = await authAPI.getCurrentUser();
-        if (storedUser) {
-          setUser(storedUser);
-        }
-      } catch (error) {
-        console.error('Error auto-loading user', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+ useEffect(() => {
+ const initAuth = async () => {
+ try {
+ const storedToken = await SecureStore.getItemAsync('pulse_token');
+ if (!storedToken) {
+ // No token at all — nothing to hydrate
+ setLoading(false);
+ return;
+ }
 
-    loadUser();
+ // --- Optimistic Hydration ---
+ const cachedUser = await SecureStore.getItemAsync('pulse_user');
+ if (cachedUser) {
+ try {
+ setUser(JSON.parse(cachedUser));
+ } catch {
+ // Corrupt cache — clear and proceed to server verify
+ await SecureStore.deleteItemAsync('pulse_user');
+ }
+ }
+ // Unblock the UI immediately
+ setLoading(false);
 
-    const subscription = DeviceEventEmitter.addListener('force_logout', () => {
-      setUser(null); // Actually log the user out
-    });
+ // --- Silent Background Verification ---
+ try {
+ const freshUser = await authAPI.verifyToken();
+ setUser(freshUser); // Refresh with latest server data (e.g. updated name/role)
+ } catch (error: any) {
+ if (error.response?.status === 401 || error.response?.status === 403) {
+ await authAPI.logout();
+ setUser(null);
+ } else {
+ console.warn('[Pulse] Silent token verification failed due to network/server error. Using cached user.');
+ }
+ }
+ } catch (e) {
+ console.error("Error initializing auth:", e);
+ setLoading(false);
+ }
+ };
 
-    return () => {
-      subscription.remove();
-    };
-  }, []);
+ initAuth();
+ }, []);
 
-  const refreshUser = async () => {
-    try {
-      const userData = await authAPI.verifyToken();
-      setUser(userData);
-      await SecureStore.setItemAsync('pulse_user', JSON.stringify(userData));
-    } catch (err: any) {
-      if (err.response?.status === 401 || err.response?.status === 403) {
-        await authAPI.logout();
-        setUser(null);
-      }
-    }
-  };
-
-  const setGoogleUser = (userData: User) => {
-    setUser(userData);
-  };
+ const refreshUser = async () => {
+ try {
+ const userData = await authAPI.verifyToken();
+ setUser(userData);
+ } catch (err: any) {
+ if (err.response?.status === 401 || err.response?.status === 403) {
+ await authAPI.logout();
+ setUser(null);
+ }
+ }
+ };
 
  const login = async (identifier: string, password: string) => {
-   setLoading(true);
-   try {
-     const res = await authAPI.login(identifier, password);
-     if (res.user) {
-       setUser(res.user);
-     }
-   } finally {
-     setLoading(false);
-   }
+ setLoading(true);
+ try {
+ const data = await authAPI.login(identifier, password);
+ setUser(data.user);
+ } catch (err) {
+ setLoading(false);
+ throw err; 
+ } finally {
+ setLoading(false);
+ }
  };
 
  const googleLogin = async () => {
  setLoading(true);
  try {
- console.warn("Google Sign-In is disabled in Expo Go MVP.");
- // TODO: Implement expo-auth-session for Google Sign-in in Expo Go
- throw new Error("Google Sign-in not supported in Expo Go");
+ await GoogleSignin.hasPlayServices();
+ const userInfo = await GoogleSignin.signIn();
+ const idToken = userInfo.data?.idToken;
+
+ if (!idToken) {
+ throw new Error('No ID token present');
+ }
+
+ const data = await authAPI.googleAuth(idToken);
+ setUser(data.user);
  } catch (error: any) {
+ if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+ console.log('User cancelled the login flow');
+ } else if (error.code === statusCodes.IN_PROGRESS) {
+ console.log('Sign in is in progress already');
+ } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+ console.log('Play services not available or outdated');
+ } else {
+ console.error('Some other error happened', error);
+ }
  throw error;
  } finally {
  setLoading(false);
@@ -113,15 +135,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
  };
 
  const register = async (name: string, email: string, mobileNumber: string, password: string, code: string) => {
-   setLoading(true);
-   try {
-     const res = await authAPI.register(name, email, mobileNumber, password, code);
-     if (res.user) {
-       setUser(res.user);
-     }
-   } finally {
-     setLoading(false);
-   }
+ setLoading(true);
+ try {
+ const data = await authAPI.register(name, email, mobileNumber, password, code);
+ setUser(data.user);
+ } catch (err) {
+ setLoading(false);
+ throw err; 
+ } finally {
+ setLoading(false);
+ }
  };
 
  const logout = async () => {
@@ -129,11 +152,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
  setUser(null);
  };
 
-  return (
-    <AuthContext.Provider value={{ user, loading, login, googleLogin, setGoogleUser, register, logout, refreshUser }}>
-      {children}
-    </AuthContext.Provider>
-  );
+ return (
+ <AuthContext.Provider value={{ user, loading, login, googleLogin, register, logout, refreshUser }}>
+ {children}
+ </AuthContext.Provider>
+ );
 };
 
 export const useAuth = () => {

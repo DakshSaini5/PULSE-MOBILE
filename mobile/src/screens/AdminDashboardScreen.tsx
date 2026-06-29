@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
-import { SafeScreen as SafeAreaView } from '../components/SafeScreen';
+import { View, Text, ScrollView, SafeAreaView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { ShieldAlert, Users, Database, FileText, ArrowLeft, Trash2, ShieldCheck, Activity } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -36,14 +35,14 @@ export const AdminDashboardScreen = () => {
 
  if (loading || !stats) {
  return (
- <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-background justify-center items-center">
+ <SafeAreaView className="flex-1 bg-background justify-center items-center">
  <ActivityIndicator size="large" color="#1E60D5" />
  </SafeAreaView>
  );
  }
 
  return (
- <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-background">
+ <SafeAreaView className="flex-1 bg-background">
  <View className="px-5 py-4 border-b border-border bg-white dark:bg-slate-900 flex-row items-center ">
  <TouchableOpacity onPress={() => navigation.goBack()} className="mr-3">
  <ArrowLeft size={20} color="#64748b" />
@@ -98,6 +97,3 @@ export const AdminDashboardScreen = () => {
 };
 
 export default AdminDashboardScreen;
-
-
-

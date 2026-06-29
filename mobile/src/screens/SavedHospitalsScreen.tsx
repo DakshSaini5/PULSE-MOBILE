@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Linking } from 'react-native';
-import { SafeScreen as SafeAreaView } from '../components/SafeScreen';
+import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, ActivityIndicator, Linking } from 'react-native';
 import { hospitalAPI, Hospital } from '../services/api';
 import { Heart, MapPin, Star, AlertCircle, PhoneCall, ArrowRight } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
-import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
-import { useCallback } from 'react';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useUserLocation } from '../context/LocationContext';
 
 export const SavedHospitalsScreen = () => {
@@ -40,11 +38,9 @@ export const SavedHospitalsScreen = () => {
  }
  };
 
- useFocusEffect(
-    useCallback(() => {
-      fetchSaved();
-    }, [lat, lng, user])
-  );
+ useEffect(() => {
+ fetchSaved();
+ }, [lat, lng]);
 
  const handleUnsave = async (id: string) => {
  try {
@@ -56,7 +52,7 @@ export const SavedHospitalsScreen = () => {
  };
 
  return (
- <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-background">
+ <SafeAreaView className="flex-1 bg-background">
  <ScrollView contentContainerStyle={{ padding: 20 }} className="flex-1">
  {isEmergencyCallMode && (
  <View className="bg-red-600 rounded-2xl p-4 flex-row items-center gap-3 mb-6 ">
@@ -168,6 +164,3 @@ export const SavedHospitalsScreen = () => {
 };
 
 export default SavedHospitalsScreen;
-
-
-

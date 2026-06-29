@@ -1,296 +1,163 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, Alert } from 'react-native';
-import { SafeScreen as SafeAreaView } from '../components/SafeScreen';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { Search, MapPin, Stethoscope } from 'lucide-react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, TextInput, Platform } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { 
+ Stethoscope, Syringe, FlaskConical, Bone, Heart, Brain, 
+ Eye, Baby, Search, HelpCircle, MapPin, ChevronRight, AlertTriangle 
+} from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { useUserLocation } from '../context/LocationContext';
-import { ServicesGrid } from '../components/ServicesGrid';
-import { EmergencyContacts } from '../components/EmergencyContacts';
-import { NotificationCenter } from '../components/NotificationCenter';
-import { dashboardAPI, hospitalAPI } from '../services/api';
-import EmergencyContactModal from '../components/EmergencyContactModal';
+import { PulseLogo } from '../components/PulseLogo';
+import { Button } from '../components/ui/button';
 
-let hasPromptedEmergencyContacts = false;
-let hasShownServiceNotice = false;
+const services = [
+ { id: "general", label: "General", icon: Stethoscope, bg: "bg-primary/10", iconColor: "#2563EB" },
+ { id: "vaccination", label: "Vaccination", icon: Syringe, bg: "bg-emerald-500/10", iconColor: "#10b981" },
+ { id: "blood-test", label: "Blood Test", icon: FlaskConical, bg: "bg-primary/10", iconColor: "#2563EB" },
+ { id: "dental", label: "Dental", icon: Bone, bg: "bg-amber-500/10", iconColor: "#d97706" },
+ { id: "cardiology", label: "Cardiology", icon: Heart, bg: "bg-primary/10", iconColor: "#2563EB" },
+ { id: "neurology", label: "Neurology", icon: Brain, bg: "bg-purple-500/10", iconColor: "#9333ea" },
+ { id: "eye-care", label: "Eye Care", icon: Eye, bg: "bg-primary/10", iconColor: "#2563EB" },
+ { id: "pediatrics", label: "Pediatrics", icon: Baby, bg: "bg-amber-500/10", iconColor: "#d97706" },
+];
 
 export const HomeScreen = () => {
-  const navigation = useNavigation<any>();
-  const { user } = useAuth();
-  const { label: cityName, latitude: lat, longitude: lng } = useUserLocation();
-  const stableLat = lat ? parseFloat(lat.toFixed(4)) : undefined;
-  const stableLng = lng ? parseFloat(lng.toFixed(4)) : undefined;
+ const navigation = useNavigation<any>();
+ const { user } = useAuth();
+ const { label: cityName, locationStatus } = useUserLocation();
+ const [searchQuery, setSearchQuery] = useState("");
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [autocompleteHospitals, setAutocompleteHospitals] = useState<Array<{ id: string; name: string }>>([]);
-  const [autocompleteSpecialties, setAutocompleteSpecialties] = useState<Array<{ name: string }>>([]);
-  const [showAutocomplete, setShowAutocomplete] = useState(false);
-  const [searchingAutocomplete, setSearchingAutocomplete] = useState(false);
-  const [stats, setStats] = useState({ scans: 0, hospitals: 0, trends: 0 });
-  const [statsLoading, setStatsLoading] = useState(true);
-  const [contacts, setContacts] = useState([]);
-  const [isEmergencyModalOpen, setIsEmergencyModalOpen] = useState(false);
+ const navigateToSearch = () => {
+ navigation.navigate('SearchTab', { query: searchQuery });
+ };
 
-  // Geographic service boundary check
-  useEffect(() => {
-    if (cityName && !hasShownServiceNotice) {
-      const lowerCity = cityName.toLowerCase();
-      const isSupported = ['delhi', 'new delhi', 'mumbai', 'bombay', 'bangalore', 'bengaluru'].some(c => lowerCity.includes(c));
-      if (!isSupported) {
-        hasShownServiceNotice = true;
-        Alert.alert(
-          "Service Notice",
-          "Our complete service is only in Delhi, Mumbai, and Bangalore for now."
-        );
-      }
-    }
-  }, [cityName]);
+ return (
+ <SafeAreaView className="flex-1 bg-background">
+ {/* App Header */}
+ <View className="flex-row items-center justify-between px-6 py-4 bg-background/90 border-b border-border z-10">
+ <PulseLogo size={24} variant="horizontal" showTagline={false} />
+ <TouchableOpacity onPress={() => navigation.navigate('ProfileTab')} className="active:scale-95 transition-transform">
+ <View className="h-9 w-9 rounded-xl bg-secondary/50 items-center justify-center border border-border">
+ <Text className="text-primary font-bold text-sm">
+ {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
+ </Text>
+ </View>
+ </TouchableOpacity>
+ </View>
 
-  // Session guarded automatic emergency contact prompt
-  useEffect(() => {
-    if (!statsLoading && contacts.length === 0 && !hasPromptedEmergencyContacts) {
-      hasPromptedEmergencyContacts = true;
-      setIsEmergencyModalOpen(true);
-    }
-  }, [statsLoading, contacts]);
+ <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 100 }}>
+ 
+ {/* Alert Banner */}
+ {locationStatus !== 'granted' && (
+ <View className="mx-6 mt-6 bg-destructive/10 rounded-xl p-4 flex-row items-start gap-3 border border-destructive/20">
+ <AlertTriangle size={18} color="#2563EB" style={{ marginTop: 2 }} />
+ <Text className="text-sm text-destructive flex-1 leading-relaxed font-medium">
+ Location access is required for the Panic Button feature to work accurately.
+ </Text>
+ </View>
+ )}
 
-  // Live Autocomplete Effect with Debounce Protection
-  useEffect(() => {
-    if (searchQuery.trim().length < 2) {
-      setAutocompleteHospitals([]);
-      setAutocompleteSpecialties([]);
-      setShowAutocomplete(false);
-      return;
-    }
+ {/* Greeting */}
+ <View className="px-6 pt-8 pb-4">
+ <Text className="text-[32px] font-extrabold text-foreground tracking-tight leading-10">
+ Hi, {user?.name || 'User'} 👋
+ </Text>
+ <View className="flex-row items-center mt-3 bg-secondary/50 self-start px-3 py-1.5 rounded-full border border-border">
+ <MapPin size={14} color="#2563EB" />
+ <Text className="text-xs text-muted-foreground ml-2 font-medium">
+ Showing care in <Text className="font-bold text-foreground">{cityName || 'Unknown Location'}</Text>
+ </Text>
+ </View>
 
-    setSearchingAutocomplete(true);
-    const delayDebounceFn = setTimeout(async () => {
-      try {
-        const data = await hospitalAPI.autocomplete(searchQuery, stableLat, stableLng, cityName || undefined);
-        setAutocompleteHospitals(data.hospitals || []);
-        setAutocompleteSpecialties(data.specialties || []);
-        setShowAutocomplete(true);
-      } catch (err) {
-        console.error('[API] Autocomplete error:', err);
-      } finally {
-        setSearchingAutocomplete(false);
-      }
-    }, 300);
+ {/* Quick Actions */}
+ <View className="flex-row gap-4 mt-8">
+ <Button variant="outline" className="flex-1 border border-border h-14 rounded-xl bg-card">
+ <HelpCircle size={18} color="#2563EB" style={{ marginRight: 8 }} />
+ <Text className="font-semibold text-foreground text-sm">Need Help?</Text>
+ </Button>
+ <Button className="flex-1 h-14 rounded-xl bg-primary border border-primary" onPress={() => navigation.navigate('SearchTab')}>
+ <Text className="text-white font-semibold text-sm">Find Hospitals</Text>
+ </Button>
+ </View>
+ </View>
 
-    return () => clearTimeout(delayDebounceFn);
-  }, [searchQuery, stableLat, stableLng, cityName]);
+ {/* Search Bar */}
+ <View className="px-6 py-6">
+ <View className="flex-row gap-3">
+ <View className="flex-1 flex-row items-center bg-secondary/30 border border-border rounded-xl px-5 h-14">
+ <Search size={18} color="#94a3b8" />
+ <TextInput
+ value={searchQuery}
+ onChangeText={setSearchQuery}
+ placeholder="Search services or hospitals..."
+ placeholderTextColor="#94a3b8"
+ className="flex-1 ml-3 text-base text-foreground font-medium h-full"
+ />
+ </View>
+ <Button className="h-14 px-6 rounded-xl bg-secondary border border-border" onPress={navigateToSearch}>
+ <Text className="text-foreground font-semibold text-sm">Search</Text>
+ </Button>
+ </View>
+ </View>
 
-  const handleSelectHospitalSuggestion = (hospitalId: string) => {
-    setShowAutocomplete(false);
-    navigation.navigate('HospitalDetail', { id: hospitalId });
-  };
+ {/* Browse Services */}
+ <View className="px-6 py-4">
+ <View className="flex-row items-center justify-between mb-6">
+ <Text className="text-lg font-bold text-foreground tracking-tight">Browse Services</Text>
+ <TouchableOpacity className="flex-row items-center gap-1 bg-secondary/50 px-3 py-1.5 rounded-xl border border-border">
+ <Text className="text-xs font-semibold text-foreground">View all</Text>
 
-  const handleSelectSpecialtySuggestion = (specialtyName: string) => {
-    setShowAutocomplete(false);
-    navigation.navigate('SearchTab', { specialty: specialtyName });
-    setSearchQuery('');
-  };
-  const fetchDashboard = useCallback(async () => {
-    if (!user) return;
-    try {
-      const data = await dashboardAPI.getSummary();
-      setStats(data.summary);
-      setContacts(data.emergencyContacts);
-    } catch (err) {
-      console.error("Failed to fetch dashboard summary", err);
-    } finally {
-      setStatsLoading(false);
-    }
-  }, [user]);
+ <ChevronRight size={14} color="#2563EB" />
+ </TouchableOpacity>
+ </View>
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchDashboard();
-    }, [fetchDashboard])
-  );
+ <View className="flex-row flex-wrap justify-between gap-y-4">
+ {services.map((service) => {
+ const Icon = service.icon;
+ return (
+ <TouchableOpacity
+ key={service.id}
+ className="w-[23%] flex-col items-center mb-2 active:scale-95 transition-transform"
+ onPress={() => navigation.navigate('SearchTab')}
+ >
+ <View className={`h-14 w-14 rounded-2xl items-center justify-center mb-2 bg-secondary/30 border border-border`}>
+ <Icon size={22} color={service.iconColor} />
+ </View>
+ <Text className="text-[10px] font-semibold text-muted-foreground text-center tracking-tight">
+ {service.label}
+ </Text>
+ </TouchableOpacity>
+ );
+ })}
+ </View>
+ </View>
 
-  return (
-    <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
-        
-        {/* Greeting Section */}
-        <View className="px-5 pt-6 pb-4">
-          <View className="flex-row justify-between items-start">
-            <Text className="text-[32px] font-black text-slate-800 dark:text-slate-100 tracking-tighter leading-10 flex-1">
-              Hi, {user?.name || 'Daksh Saini'}
-            </Text>
-            <View className="mt-1">
-              <NotificationCenter />
-            </View>
-          </View>
-          <View className="flex-row items-center mt-2">
-            <MapPin size={14} color="#64748b" />
-            <Text className="text-xs text-slate-500 dark:text-slate-400 font-semibold ml-1.5">
-              {cityName || 'Delhi, India'} <Text className="text-primary font-bold">[Change]</Text>
-            </Text>
-          </View>
+ {/* Quick Stats */}
+ <View className="px-6 pt-6 pb-8">
+ <View className="bg-card rounded-2xl border border-border p-5">
+ <Text className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-6">
+ Your Health Summary
+ </Text>
+ <View className="flex-row justify-between">
+ {[
+ { label: "Scans", value: "0", sub: "analyzed" },
+ { label: "Hospitals", value: "3", sub: "saved" },
+ { label: "Trends", value: "1", sub: "tracked" },
+ ].map((stat, i) => (
+ <View key={i} className="flex-col items-center bg-secondary/20 rounded-xl p-3 w-[31%] border border-border/50">
+ <Text className="text-2xl font-bold text-primary mb-1">{stat.value}</Text>
+ <Text className="text-xs font-semibold text-foreground">{stat.label}</Text>
 
-          {/* Search Bar */}
-          <View className="mt-6 relative z-50">
-            <View className="flex-row items-center bg-white dark:bg-slate-900 border border-border rounded-2xl h-14 pl-4 pr-1.5 shadow-sm">
-              <Search size={20} color="#94a3b8" />
-              <TextInput
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                onSubmitEditing={() => {
-                  setShowAutocomplete(false);
-                  if (searchQuery.trim()) {
-                    navigation.navigate('SearchTab', { searchQuery: searchQuery });
-                  } else {
-                    navigation.navigate('SearchTab');
-                  }
-                }}
-                placeholder="Search hospitals, services..."
-                placeholderTextColor="#94a3b8"
-                className="flex-1 ml-3 text-sm text-foreground font-semibold h-full"
-                returnKeyType="search"
-              />
-              {searchQuery.length > 0 && (
-                <TouchableOpacity onPress={() => { setSearchQuery(''); setAutocompleteHospitals([]); setAutocompleteSpecialties([]); setShowAutocomplete(false); }} className="p-1 mr-1">
-                  <Text className="text-slate-400 text-xs font-bold">Clear</Text>
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity 
-                className="bg-primary px-5 py-2.5 rounded-xl h-[44px] justify-center"
-                onPress={() => {
-                  setShowAutocomplete(false);
-                  if (searchQuery.trim()) {
-                    navigation.navigate('SearchTab', { searchQuery: searchQuery });
-                  } else {
-                    navigation.navigate('SearchTab');
-                  }
-                }}
-              >
-                <Text className="text-white font-bold text-xs tracking-wide">Search</Text>
-              </TouchableOpacity>
-            </View>
+ <Text className="text-[10px] text-muted-foreground mt-0.5 font-medium">{stat.sub}</Text>
+ </View>
+ ))}
+ </View>
+ </View>
+ </View>
 
-            {/* Autocomplete Dropdown */}
-            {showAutocomplete && (autocompleteHospitals.length > 0 || autocompleteSpecialties.length > 0) && (
-              <View className="absolute top-16 left-0 right-0 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-50 overflow-hidden max-h-60">
-                <ScrollView keyboardShouldPersistTaps="handled">
-                  {autocompleteSpecialties.length > 0 && (
-                    <View className="p-2 border-b border-slate-100 dark:border-slate-800">
-                      <Text className="text-[10px] font-black text-slate-400 dark:text-slate-500 px-2 py-1 uppercase tracking-wider">Specialties</Text>
-                      {autocompleteSpecialties.map((spec) => (
-                        <TouchableOpacity
-                          key={spec.name}
-                          onPress={() => handleSelectSpecialtySuggestion(spec.name)}
-                          className="flex-row items-center gap-2 px-3 py-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/40 mb-1"
-                        >
-                          <Stethoscope size={14} color="#2563EB" />
-                          <Text className="text-xs font-bold text-slate-700 dark:text-slate-300">{spec.name}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  )}
-                  {autocompleteHospitals.length > 0 && (
-                    <View className="p-2">
-                      <Text className="text-[10px] font-black text-slate-400 dark:text-slate-500 px-2 py-1 uppercase tracking-wider">Hospitals</Text>
-                      {autocompleteHospitals.map((hosp) => (
-                        <TouchableOpacity
-                          key={hosp.id}
-                          onPress={() => handleSelectHospitalSuggestion(hosp.id)}
-                          className="flex-row items-center gap-2 px-3 py-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/40 mb-1"
-                        >
-                          <MapPin size={14} color="#64748b" />
-                          <Text className="text-xs text-slate-700 dark:text-slate-300 font-semibold" numberOfLines={1}>
-                            {hosp.name}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  )}
-                </ScrollView>
-              </View>
-            )}
-          </View>
-
-          {/* Quick Actions */}
-          <View className="flex-row gap-3 mt-4">
-            <TouchableOpacity 
-              className="flex-1 bg-slate-200 dark:bg-slate-800 h-11 rounded-full items-center justify-center flex-row"
-              onPress={() => navigation.navigate('SearchTab')}
-            >
-              <Text className="font-bold text-slate-700 dark:text-slate-300 text-xs">? Need Help?</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              className="flex-1 bg-slate-800 dark:bg-slate-100 h-11 rounded-full items-center justify-center flex-row"
-              onPress={() => navigation.navigate('SearchTab')}
-            >
-              <Text className="font-bold text-white dark:text-slate-900 text-xs">• Find Hospitals</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Persistent Warning Banner */}
-        {contacts.length === 0 && (
-          <TouchableOpacity 
-            onPress={() => setIsEmergencyModalOpen(true)}
-            className="mx-5 mt-4 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 p-4 rounded-2xl flex-row items-center gap-3"
-          >
-            <View className="w-2 h-2 rounded-full bg-rose-500" />
-            <View className="flex-1">
-              <Text className="text-xs font-bold text-rose-700 dark:text-rose-400">No Emergency Contacts Added</Text>
-              <Text className="text-[10px] text-rose-600 dark:text-rose-500 mt-0.5">Please add at least one contact to enable the Panic Button SMS alert system.</Text>
-            </View>
-          </TouchableOpacity>
-        )}
-
-        {/* Services Grid */}
-        <ServicesGrid />
-
-        {/* Emergency Contacts */}
-        <EmergencyContacts contacts={contacts} onAddSuccess={fetchDashboard} />
-
-        {/* Controlled Emergency Contact Modal */}
-        <EmergencyContactModal 
-          isOpen={isEmergencyModalOpen}
-          onClose={() => setIsEmergencyModalOpen(false)}
-          onSuccess={() => {
-            setIsEmergencyModalOpen(false);
-            fetchDashboard();
-          }}
-        />
-
-        {/* Metric Footer */}
-        <View className="px-5 py-6">
-          <View className="bg-white dark:bg-slate-900 rounded-2xl border border-border p-4 shadow-sm">
-            <Text className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4">
-              Dashboard Summary
-            </Text>
-            <View className="flex-row justify-between gap-3">
-              {[
-                { label: "Scans", value: stats.scans.toString(), sub: "Analyzed", route: 'ReportsTab' },
-                { label: "Hospitals", value: stats.hospitals.toString(), sub: "Saved", route: 'SavedHospitals' },
-                { label: "Trends", value: stats.trends.toString(), sub: "Tracked", route: 'HealthTrendsTab' },
-              ].map((stat, i) => (
-                <TouchableOpacity 
-                  key={i} 
-                  onPress={() => navigation.navigate(stat.route)}
-                  className="flex-1 bg-slate-50 dark:bg-slate-800 rounded-xl p-3 items-center border border-slate-100 dark:border-slate-800 active:bg-slate-100 dark:active:bg-slate-700"
-                >
-                  {statsLoading ? (
-                    <View className="w-8 h-6 bg-slate-200 dark:bg-slate-700 rounded mb-1" />
-                  ) : (
-                    <Text className="text-2xl font-black text-primary mb-0.5">{stat.value}</Text>
-                  )}
-                  <Text className="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">{stat.label}</Text>
-                  <Text className="text-[9px] text-slate-400 font-semibold">{stat.sub}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        </View>
-
-      </ScrollView>
-    </SafeAreaView>
-  );
+ </ScrollView>
+ </SafeAreaView>
+ );
 };
 
 export default HomeScreen;
