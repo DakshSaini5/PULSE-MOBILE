@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Modal } from 'react-native';
 import { Stethoscope, Syringe, Activity, Heart, Brain, Eye, Baby, Droplet, Search, Menu, Bell, MapPin } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDebounce } from '../hooks/useDebounce';
-import { hospitalAPI, Hospital } from '../services/api';
+import { hospitalAPI, Hospital, emergencyAPI } from '../services/api';
+import { ShieldAlert } from 'lucide-react-native';
 
 const SERVICES = [
   { id: '1', title: 'General', icon: Stethoscope },
@@ -27,6 +28,26 @@ export default function HomeScreen() {
   const [searchResults, setSearchResults] = useState<Hospital[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const debouncedQuery = useDebounce(searchQuery, 400);
+
+  // Emergency Contact Prompt State
+  const [showEmergencyPrompt, setShowEmergencyPrompt] = useState(false);
+
+  useEffect(() => {
+    const checkEmergencyContacts = async () => {
+      try {
+        const contacts = await emergencyAPI.getContacts();
+        if (contacts.length === 0) {
+          setShowEmergencyPrompt(true);
+        }
+      } catch (error) {
+        console.error('Failed to check emergency contacts', error);
+      }
+    };
+    // Only check if user is logged in
+    if (user) {
+      checkEmergencyContacts();
+    }
+  }, [user]);
 
   useEffect(() => {
     if (debouncedQuery.trim().length < 2) {
@@ -189,6 +210,39 @@ export default function HomeScreen() {
           </View>
         </View>
       </ScrollView>
+
+      {/* Emergency Contact Startup Prompt */}
+      <Modal visible={showEmergencyPrompt} transparent animationType="slide">
+        <View className="flex-1 bg-black/60 justify-center items-center px-6">
+          <View className="bg-white rounded-3xl p-6 shadow-2xl w-full max-w-sm items-center">
+            <View className="w-16 h-16 bg-red-100 rounded-full items-center justify-center mb-4">
+              <ShieldAlert size={32} color="#ef4444" />
+            </View>
+            <Text className="text-xl font-black text-slate-900 text-center mb-2">Safety First!</Text>
+            <Text className="text-sm text-slate-500 text-center mb-6 leading-relaxed">
+              For your safety in critical moments, please add at least one emergency contact. We will alert them automatically if you trigger the SOS Panic Button.
+            </Text>
+            
+            <TouchableOpacity 
+              onPress={() => {
+                setShowEmergencyPrompt(false);
+                navigation.navigate('Settings');
+              }}
+              className="w-full bg-blue-600 py-3.5 rounded-xl items-center justify-center mb-3"
+            >
+              <Text className="text-white font-bold text-base">Add Contact Now</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              onPress={() => setShowEmergencyPrompt(false)}
+              className="w-full bg-slate-100 py-3.5 rounded-xl items-center justify-center"
+            >
+              <Text className="text-slate-600 font-bold">Remind Me Later</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
     </View>
   );
 }
